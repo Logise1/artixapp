@@ -406,7 +406,7 @@ async function uploadToYeet(file) {
             body: formData
         });
 
-        if (!response.ok) throw new Error('Falló la subida');
+        if (!response.ok) throw new Error('Upload failed');
         const result = await response.json();
         return {
             url: `https://yyf.mubilop.com${result.fileUrl}`,
@@ -414,7 +414,7 @@ async function uploadToYeet(file) {
         };
     } catch (err) {
         console.error(err);
-        throw new Error("Falló la subida del archivo. Intenta de nuevo.");
+        throw new Error("File upload failed. Please try again.");
     }
 }
 
@@ -431,7 +431,7 @@ chatFileInput.addEventListener('change', async (e) => {
     if (file) {
         currentChatFile = file;
         chatPreview.style.display = 'block';
-        chatPreview.innerHTML = `<i class="fas fa-paperclip"></i> ${file.name} (Listo para enviar)`;
+        chatPreview.innerHTML = `<i class="fas fa-paperclip"></i> ${file.name} (Ready to send)`;
     }
 });
 
@@ -446,6 +446,14 @@ function loadMessages(channelId) {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     });
 }
+
+// ... ensured above via large replacement ...
+// Just verifying the previous replace covers renderMessage correctly.
+// Since the previous ReplaceContent covered from "Auth State Listener" (line 35) but ended before "loadClasses", it missed "renderMessage".
+// My previous tool call REPLACED "Auth State Listener" block essentially with "updateProfileUI" and the new auth listener.
+// BUT I also need to replace "renderMessage". The previous tool call target text was mostly the Auth block. It also included renderMessage in replacement content but it might have been cut off or misplaced if the target text didn't span that far.
+// Actually, looking at the previous tool call, I targeted the Auth Block primarily.
+// I need to explicitly replace the old renderMessage and messageForm listener now.
 
 function renderMessage(data) {
     const div = document.createElement('div');
@@ -471,15 +479,15 @@ function renderMessage(data) {
                     <div class="card-preview">
                         <img src="${data.fileUrl}">
                         <div class="preview-overlay">
-                            <div class="preview-btn"><i class="fas fa-expand"></i> Ver</div>
+                            <div class="preview-btn"><i class="fas fa-expand"></i> Vista previa</div>
                         </div>
                     </div>
                      <div class="card-metadata">
                         <div class="file-icon-large file-icon-img"><i class="fas fa-image"></i></div>
                         <div class="file-info">
                             <div class="filename">${data.fileName}</div>
-                            <div style="font-size:0.75rem; color:var(--text-dim);">Imagen</div>
                         </div>
+                        <div class="card-actions"><i class="fas fa-ellipsis-h"></i></div>
                     </div>
                 </div>
             `;
@@ -499,20 +507,20 @@ function renderMessage(data) {
                                 <div class="fake-doc-line short"></div>
                                 <div class="fake-doc-line"></div>
                                 <div class="fake-doc-line"></div>
+                                <div class="fake-doc-line short"></div>
                             </div>
                          ` : '<i class="fas fa-file" style="font-size:3rem; color:#cbd5e1;"></i>'}
                          
                          <div class="preview-overlay">
-                            <div class="preview-btn"><i class="fas fa-eye"></i> Abrir</div>
+                            <div class="preview-btn"><i class="fas fa-eye"></i> Vista previa</div>
                         </div>
                     </div>
                     <div class="card-metadata">
                         <div class="file-icon-large ${iconClass}"><i class="fas ${iconIcon}"></i></div>
                         <div class="file-info">
                             <div class="filename">${data.fileName}</div>
-                            <div style="font-size:0.75rem; color:var(--text-dim);">Archivo</div>
                         </div>
-                        <div class="card-actions"><i class="fas fa-download"></i></div>
+                        <div class="card-actions"><i class="fas fa-ellipsis-h"></i></div>
                     </div>
                 </div>
             `;
@@ -540,7 +548,7 @@ messageForm.addEventListener('submit', async (e) => {
     let msgType = 'text';
 
     if (currentChatFile) {
-        chatPreview.innerHTML = 'Subiendo... <i class="fas fa-spinner fa-spin"></i>';
+        chatPreview.innerHTML = 'Uploading... <i class="fas fa-spinner fa-spin"></i>';
         try {
             const uploaded = await uploadToYeet(currentChatFile);
             fileData = {
@@ -594,11 +602,7 @@ function loadTasks(channelId) {
     onSnapshot(q, (snapshot) => {
         tasksContainer.innerHTML = '';
         if (snapshot.empty) {
-            tasksContainer.innerHTML = `
-                <div style="text-align:center; padding:40px; opacity:0.6;">
-                    <i class="fas fa-clipboard-check" style="font-size:3rem; margin-bottom:15px; color:var(--text-dim);"></i>
-                    <p>No hay tareas asignadas aún.</p>
-                </div>`;
+            tasksContainer.innerHTML = '<div class="empty-state"><i class="fas fa-clipboard-check" style="font-size:2rem; opacity:0.3; margin-bottom:10px;"></i><br>No assignments yet.</div>';
         }
         snapshot.forEach((doc) => {
             renderTaskSummary(doc.id, doc.data());
@@ -612,64 +616,16 @@ function renderTaskSummary(id, data) {
     div.onclick = () => openTaskDetails(id, data); /* Open Large View */
 
     div.innerHTML = `
-        <div class="task-header" style="display:flex; justify-content:space-between; margin-bottom:10px;">
+        <div class="task-header">
             <h4 style="font-size:1.1rem; font-weight:700;">${data.title}</h4>
-            <span style="font-size:0.8rem; color:var(--text-dim); background:var(--bg-app); padding:4px 8px; border-radius:6px;">${new Date(data.createdAt.toDate()).toLocaleDateString()}</span>
+            <span style="font-size:0.8rem; color:var(--text-dim);">${new Date(data.createdAt.toDate()).toLocaleDateString()}</span>
         </div>
-        <p style="color:var(--text-main); margin-bottom:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:0.8;">${data.description}</p>
-        <div style="display:flex; justify-content:flex-end;">
-            <span style="font-size:0.85rem; color:var(--primary); font-weight:600;">Ver Detalles <i class="fas fa-arrow-right"></i></span>
-        </div>
+        <p style="color:var(--text-main); margin-bottom:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${data.description}</p>
+        <button style="width:auto; padding:6px 12px; font-size:0.8rem; pointer-events:none; background:var(--bg-app); color:var(--text-dim); border:1px solid var(--border-color);">View Details</button>
     `;
     tasksContainer.appendChild(div);
 }
 
-// Add Task Logic
-const addTaskBtn = document.getElementById('add-task-btn');
-if (addTaskBtn) {
-    addTaskBtn.addEventListener('click', () => {
-        document.getElementById('create-task-modal').classList.add('active');
-    });
-}
-
-const createTaskForm = document.getElementById('create-task-form');
-createTaskForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const title = document.getElementById('task-title').value;
-    const desc = document.getElementById('task-desc').value;
-    const fileInput = document.getElementById('task-attachment');
-    const btn = document.getElementById('create-task-btn-submit');
-
-    btn.textContent = "Publicando...";
-    btn.disabled = true;
-
-    let fileData = null;
-    if (fileInput.files[0]) {
-        try {
-            const up = await uploadToYeet(fileInput.files[0]);
-            fileData = { fileUrl: up.url, fileName: up.filename };
-        } catch (err) {
-            alert("Error subiendo adjunto: " + err.message);
-            btn.textContent = "Publicar Tarea";
-            btn.disabled = false;
-            return;
-        }
-    }
-
-    await addDoc(collection(db, "tasks"), {
-        channelId: currentChannelId,
-        title: title,
-        description: desc,
-        createdAt: new Date(),
-        ...fileData
-    });
-
-    document.getElementById('create-task-modal').classList.remove('active');
-    e.target.reset();
-    btn.textContent = "Publicar Tarea";
-    btn.disabled = false;
-});
 // Open Large Task View
 window.openTaskDetails = async (id, data) => {
     currentTaskId = id;
@@ -688,15 +644,14 @@ window.openTaskDetails = async (id, data) => {
     attachmentsDiv.innerHTML = '';
 
     if (data.fileUrl) {
-        attachmentsDiv.innerHTML = `
-             <h4 style="margin-bottom:15px; font-size:1rem; color:var(--text-dim);">Recursos del Profesor</h4>
-             <a href="${data.fileUrl}" target="_blank" class="file-attachment" style="display:inline-flex; align-items:center; gap:15px; background:white; padding:15px 20px; border-radius:12px; text-decoration:none; color:inherit; border:1px solid var(--border-color); box-shadow:var(--shadow-soft); transition:transform 0.2s;">
-                <div style="width:40px; height:40px; background:#e0e7ff; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--primary); font-size:1.4rem;">
+        attachmentsDiv.innerHTML = `<h4 style="margin-bottom:10px;">Teacher Attachment</h4>
+             <a href="${data.fileUrl}" target="_blank" class="file-attachment" style="display:inline-flex; align-items:center; gap:10px; background:white; padding:15px; border-radius:8px; text-decoration:none; color:inherit; border:1px solid var(--border-color); box-shadow:var(--shadow-soft);">
+                <div style="width:40px; height:40px; background:var(--bg-app); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--primary); font-size:1.4rem;">
                     <i class="fas fa-file-download"></i>
                 </div>
                 <div>
-                    <div style="font-weight:700; font-size:1rem;">${data.fileName || 'Archivo Adjunto'}</div>
-                    <div style="font-size:0.85rem; color:var(--text-dim);">Clic para descargar</div>
+                    <div style="font-weight:600;">${data.fileName || 'Attached File'}</div>
+                    <div style="font-size:0.8rem; color:var(--text-dim);">Download Resource</div>
                 </div>
             </a>`;
     }
@@ -857,7 +812,50 @@ async function loadAllSubmissions(taskId) {
 }
 
 // Create Task with Attachment
+const createTaskModal = document.getElementById('create-task-modal');
+const createTaskForm = document.getElementById('create-task-form');
+document.getElementById('create-task-btn').addEventListener('click', () => createTaskModal.classList.add('active'));
 
+createTaskForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('task-title').value;
+    const desc = document.getElementById('task-desc').value;
+    const file = document.getElementById('task-attachment').files[0];
+
+    // Feedback
+    const btn = createTaskForm.querySelector('button');
+    const origText = btn.textContent;
+    btn.textContent = "Creating...";
+    btn.disabled = true;
+
+    try {
+        let fileData = {};
+        if (file) {
+            btn.textContent = "Uploading Attachment...";
+            const uploaded = await uploadToYeet(file);
+            fileData = {
+                fileUrl: uploaded.url,
+                fileName: uploaded.filename
+            };
+        }
+
+        await addDoc(collection(db, "tasks"), {
+            channelId: currentChannelId,
+            title: title,
+            description: desc,
+            createdAt: new Date(),
+            ...fileData
+        });
+
+        createTaskModal.classList.remove('active');
+        createTaskForm.reset();
+    } catch (err) {
+        alert("Error: " + err.message);
+    } finally {
+        btn.textContent = origText;
+        btn.disabled = false;
+    }
+});
 
 
 // Modal Closers
