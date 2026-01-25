@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artix - Plataforma Educativa</title>
+    <!-- Modern Font Stack -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <!-- Top Navigation -->
+    <nav
+        style="background: white; border-bottom: 1px solid var(--border-color); height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); position:relative; z-index:20;">
+        <div
+            style="font-weight: 800; font-size: 1.5rem; color: var(--primary); display:flex; align-items:center; gap:12px; letter-spacing: -0.5px;">
+            <div
+                style="width:36px; height:36px; background:var(--primary); border-radius:10px; display:flex; align-items:center; justify-content:center; color:white; font-size:1.2rem;">
+                <i class="fas fa-layer-group"></i></div>
+            Artix
+        </div>
+        <div style="display: flex; align-items: center; gap: 24px;">
+            <div id="nav-user-profile" class="user-profile-section" style="display:flex; align-items:center; gap:12px;">
+                <div class="avatar" id="current-user-avatar"
+                    style="width:40px; height:40px; cursor:pointer; position:relative; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.2);">
+                    <span>U</span>
+                    <input type="file" id="profile-upload-input" style="display:none;" accept="image/*">
+                    <div class="profile-overlay"><i class="fas fa-camera"></i></div>
+                </div>
+                <div style="display:flex; flex-direction:column;">
+                    <span id="user-email"
+                        style="color: var(--text-main); font-weight: 600; font-size: 0.9rem;">Usuario</span>
+                    <span style="color: var(--text-dim); font-size: 0.75rem;">Conectado</span>
+                </div>
+            </div>
+            <button id="logout-btn"
+                style="width: auto; margin: 0; padding: 10px 20px; background: white; color: var(--text-main); font-size: 0.9rem; border: 1px solid var(--border-color); border-radius:10px; font-weight:600; box-shadow:none;">Cerrar
+                Sesión</button>
+        </div>
+    </nav>
+
+    <div class="app-container">
+        <!-- Dashboard View (Class List) -->
+        <main id="dashboard-view" style="flex: 1; padding: 40px; overflow-y: auto;">
+            <div style="max-width: 1200px; margin: 0 auto;">
+                <header
+                    style="margin-bottom: 40px; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <h1
+                            style="font-size: 2.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 8px; letter-spacing:-1px;">
+                            Mis Clases</h1>
+                        <p style="color: var(--text-dim); font-size: 1.1rem;">Bienvenido de nuevo a tu espacio de
+                            aprendizaje.</p>
+                    </div>
+                    <div style="display: flex; gap: 16px;">
+                        <button id="create-class-btn" class="prof-only"
+                            style="width: auto; display: none; background: var(--primary); box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);"><i
+                                class="fas fa-plus"></i> Crear Clase</button>
+                        <button id="join-class-btn"
+                            style="width: auto; display: none; background: white; color: var(--text-main); border: 1px solid var(--border-color); box-shadow: var(--shadow-soft);"><i
+                                class="fas fa-sign-in-alt"></i> Unirse a Clase</button>
+                    </div>
+                </header>
+
+                <div id="classes-grid" class="dashboard-grid" style="padding:0; gap:30px;">
+                    <!-- Class Cards -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Class Detail View -->
+        <div id="class-view" style="display: none; flex: 1; overflow: hidden;">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <span id="current-class-name"
+                        style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Nombre Clase</span>
+                    <button id="back-to-dash"
+                        style="width: auto; padding: 6px; background: transparent; color: var(--text-dim); box-shadow:none; margin:0;"><i
+                            class="fas fa-arrow-left"></i></button>
+                </div>
+
+                <div style="padding: 16px 24px;">
+                    <button id="add-channel-btn" class="prof-only"
+                        style="width: 100%; font-size: 0.85rem; padding: 10px; background: #eef2ff; color: var(--primary); border: 1px dashed var(--primary); margin-bottom: 15px; box-shadow:none;"><i
+                            class="fas fa-plus"></i> Nuevo Canal</button>
+                </div>
+
+                <div id="channels-container" class="channel-list">
+                    <!-- Channels -->
+                </div>
+
+                <div
+                    style="padding: 20px; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-dim);">
+                    <div style="margin-bottom:5px;">Código de Clase:</div>
+                    <div id="display-join-code" class="join-code-badge">CODE123</div>
+                </div>
+            </aside>
+
+            <!-- Main Chat/Task Area -->
+            <section class="main-content">
+                <div class="content-header">
+                    <h2 id="current-channel-name" style="font-size: 1.25rem; font-weight: 700;">General</h2>
+                    <div class="channel-actions">
+                        <!-- Context actions could go here -->
+                    </div>
+                </div>
+
+                <!-- Messages View -->
+                <div id="messages-view" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                    <div id="messages-container" class="messages-area">
+                        <!-- Messages -->
+                    </div>
+                    <div class="input-area">
+                        <form id="message-form" class="compose-box">
+                            <label for="chat-file-input"
+                                style="cursor:pointer; margin-right:10px; color:var(--text-dim); display:flex; align-items:center;">
+                                <i class="fas fa-paperclip" style="font-size:1.2rem;"></i>
+                            </label>
+                            <input type="file" id="chat-file-input" style="display:none;">
+                            <input type="text" id="message-input" style="flex: 1;" placeholder="Escribe un mensaje..."
+                                autocomplete="off">
+                            <button type="submit"
+                                style="width: auto; margin: 0; padding: 8px 12px; background: transparent; color: var(--primary); box-shadow:none;"><i
+                                    class="fas fa-paper-plane" style="font-size:1.2rem;"></i></button>
+                        </form>
+                        <div id="chat-upload-preview"
+                            style="display:none; padding: 10px; font-size: 0.85rem; color: var(--primary); font-weight:500;">
+                            Subiendo... <i class="fas fa-spinner fa-spin"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Task Details View (Large) -->
+                <div id="task-details-view"
+                    style="flex: 1; display: none; flex-direction: column; overflow-y: auto; padding: 0; background: var(--bg-app); z-index:20;">
+                    <div
+                        style="background:white; padding: 24px 40px; border-bottom: 1px solid var(--border-color); display:flex; align-items:center; gap:20px; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <button onclick="closeTaskDetails()"
+                            style="width:auto; padding:8px; margin:0; background:transparent; color:var(--text-dim); font-size:1.2rem; box-shadow:none;"><i
+                                class="fas fa-arrow-left"></i></button>
+                        <h2 id="detail-task-title" style="margin:0; font-size:1.5rem;">Título Tarea</h2>
+                    </div>
+                    <div style="padding: 40px; max-width: 900px; margin: 0 auto; width:100%;">
+                        <div
+                            style="margin-bottom: 24px; color: var(--text-dim); font-size: 0.95rem; background:white; padding:8px 16px; border-radius:20px; display:inline-block; border:1px solid var(--border-color);">
+                            Publicado el <span id="detail-task-date"
+                                style="font-weight:600; color:var(--text-main);"></span>
+                        </div>
+
+                        <div
+                            style="background:white; padding:40px; border-radius:20px; border:1px solid var(--border-color); box-shadow:var(--shadow-soft); margin-bottom:30px;">
+                            <h3
+                                style="margin-bottom:20px; font-size:1.1rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; font-weight:700;">
+                                Instrucciones</h3>
+                            <div id="detail-task-desc"
+                                style="font-size: 1.15rem; line-height: 1.7; white-space: pre-wrap; color:var(--text-main);">
+                            </div>
+
+                            <!-- Attachments Section -->
+                            <div id="detail-task-attachments"
+                                style="margin-top: 30px; padding-top:30px; border-top:1px solid var(--border-color);">
+                                <!-- Prof attachments injected here -->
+                            </div>
+                        </div>
+
+                        <!-- Student Submission Area -->
+                        <div id="detail-submission-area" class="student-only"
+                            style="background: white; padding: 40px; border-radius: 20px; border: 1px solid var(--border-color); box-shadow:var(--shadow-soft);">
+                            <h3 style="margin-bottom: 20px; font-size:1.2rem;">Tu Trabajo</h3>
+                            <form id="submission-form">
+                                <div class="file-upload-box" id="submission-drop-zone"
+                                    style="border: 2px dashed var(--border-color); padding: 40px; text-align: center; border-radius: 16px; background: var(--bg-app); cursor: pointer; transition: all 0.2s;">
+                                    <i class="fas fa-cloud-upload-alt"
+                                        style="font-size: 3rem; color: var(--primary); margin-bottom: 15px; opacity:0.7;"></i>
+                                    <p style="color: var(--text-main); font-weight:600; margin-bottom: 5px;">Haz clic
+                                        para subir o arrastra tu archivo</p>
+                                    <p style="color: var(--text-dim); font-size:0.9rem;">Soporta PDF, Word, Imágenes...
+                                    </p>
+                                    <input type="file" id="submission-file" style="display:none;">
+                                </div>
+                                <div id="submission-file-preview"
+                                    style="margin-top: 20px; display: none; align-items: center; gap: 15px; background: #eef2ff; padding: 15px 20px; border-radius: 12px; border: 1px solid var(--primary);">
+                                    <i class="fas fa-file-alt" style="color: var(--primary); font-size:1.2rem;"></i>
+                                    <span id="submission-filename"
+                                        style="font-weight:600; color:var(--primary);">archivo.txt</span>
+                                    <button type="button" onclick="clearSubmissionFile()"
+                                        style="margin-left: auto; width: auto; padding: 5px; color: #ef4444; background: transparent; box-shadow:none;"><i
+                                            class="fas fa-times"></i></button>
+                                </div>
+                                <button type="submit" style="width: 100%; margin-top: 25px; padding:18px;">Marcar como
+                                    Completado</button>
+                            </form>
+                        </div>
+
+                        <!-- Prof Submissions View -->
+                        <div id="detail-prof-view" class="prof-only">
+                            <h3
+                                style="margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; font-size:1.2rem;">
+                                Entregas de Alumnos
+                                <span id="submission-count"
+                                    style="font-size: 0.9rem; font-weight: 600; background: var(--primary); color:white; padding: 6px 14px; border-radius: 20px;">0
+                                    entregas</span>
+                            </h3>
+                            <div id="detail-submissions-list"
+                                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+                                <!-- Items -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tasks List View (Small) -->
+                <div id="tasks-view"
+                    style="flex: 1; display: none; flex-direction: column; overflow-y: auto; padding: 40px; background:var(--bg-app);">
+                    <div style="max-width:900px; margin:0 auto; width:100%;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+                            <h2 style="font-size:1.8rem; font-weight:800;">Tareas y Actividades</h2>
+                            <button id="add-task-btn" class="prof-only"
+                                style="width: auto; padding: 10px 20px; font-size: 0.9rem;"><i class="fas fa-plus"></i>
+                                Nueva Tarea</button>
+                        </div>
+                        <div id="tasks-container">
+                            <!-- Task Cards -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings View -->
+                <!-- Danger Zone -->
+                <div class="settings-section" style="margin-top: 60px;">
+                    <h3 style="font-size: 1.1rem; margin-bottom: 15px; color: #ef4444;">Danger Zone</h3>
+                    <div style="border: 1px solid #fee2e2; background: #fef2f2; border-radius: 12px; padding: 20px;">
+                        <div class="prof-only">
+                            <h4 style="font-size: 1rem; color: #991b1b; margin-bottom: 5px;">Delete Class</h4>
+                            <p style="font-size: 0.9rem; color: #b91c1c; margin-bottom: 15px;">Permanently
+                                delete this class and all its data. This action cannot be undone.</p>
+                            <button onclick="deleteThisClass()"
+                                style="width: auto; background: #ef4444; color: white; border: none; margin: 0;">Delete
+                                Class</button>
+                        </div>
+                        <div class="student-only">
+                            <h4 style="font-size: 1rem; color: #991b1b; margin-bottom: 5px;">Leave Class</h4>
+                            <p style="font-size: 0.9rem; color: #b91c1c; margin-bottom: 15px;">Remove yourself
+                                from this class.</p>
+                            <button onclick="leaveThisClass()"
+                                style="width: auto; background: #ef4444; color: white; border: none; margin: 0;">Leave
+                                Class</button>
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </div>
+
+    </div>
+    </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Create Class Modal -->
+    <div id="create-class-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Class</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="create-class-form">
+                <div class="input-group">
+                    <label>Class Name</label>
+                    <input type="text" id="new-class-name" required placeholder="e.g. Mathematics 101">
+                </div>
+                <button type="submit">Create Class</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Join Class Modal -->
+    <div id="join-class-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Join a Class</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="join-class-form">
+                <div class="input-group">
+                    <label>Class Code</label>
+                    <input type="text" id="join-code-input" required placeholder="Enter 6-character code"
+                        style="text-transform:uppercase; letter-spacing: 2px; text-align:center; font-size: 1.2rem;">
+                </div>
+                <button type="submit">Join Class</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Channel Modal -->
+    <div id="create-channel-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create Channel</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="create-channel-form">
+                <div class="input-group">
+                    <label>Channel Name</label>
+                    <input type="text" id="new-channel-name" required placeholder="e.g. homework-help">
+                </div>
+                <div class="input-group">
+                    <label>Channel Type</label>
+                    <select id="channel-type">
+                        <option value="chat">Text Chat</option>
+                        <option value="tasks">Assignments</option>
+                    </select>
+                </div>
+                <button type="submit">Create Channel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Student Modal (Inside Class) -->
+    <div id="add-student-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Student to Class</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="add-student-form">
+                <div class="input-group">
+                    <label>Student Email</label>
+                    <input type="email" id="student-email-input" required placeholder="student@email.com">
+                </div>
+                <button type="submit">Add Student</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Task Modal -->
+    <div id="create-task-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>New Assignment</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="create-task-form">
+                <div class="input-group">
+                    <label>Title</label>
+                    <input type="text" id="task-title" required>
+                </div>
+                <div class="input-group">
+                    <label>Description</label>
+                    <input type="text" id="task-desc" required>
+                </div>
+                <div class="input-group">
+                    <label>Attachment (Optional)</label>
+                    <input type="file" id="task-attachment">
+                </div>
+                <button type="submit">Assign</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Submissions Modal -->
+    <div id="submissions-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Task Submissions</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div id="submissions-list-container" class="submission-list">
+                <!-- Items -->
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module" src="dashboard.js"></script>
+</body>
+
+</html>
