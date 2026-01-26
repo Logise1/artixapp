@@ -16,11 +16,17 @@ const joinClassBtn = document.getElementById('join-class-btn');
 const backToDashBtn = document.getElementById('back-to-dash');
 const channelsContainer = document.getElementById('channels-container');
 const messagesContainer = document.getElementById('messages-container');
+const directMessagesContainer = document.getElementById('direct-messages-container'); // NEW
 const messageForm = document.getElementById('message-form');
+const directMessageForm = document.getElementById('direct-message-form'); // NEW
 const tasksView = document.getElementById('tasks-view');
 const messagesView = document.getElementById('messages-view');
 const settingsView = document.getElementById('settings-view');
 const tasksContainer = document.getElementById('tasks-container');
+
+// State for View Navigation
+let currentMainView = 'classes'; // 'classes' or 'chats'
+let activeMessageContainer = messagesContainer; // Reference to currently active container
 
 // Auth State Helper: Update UI with Profile Data
 async function updateProfileUI(user) {
@@ -112,10 +118,15 @@ auth.onAuthStateChanged(async (user) => {
 
 
 function setupUIForRole() {
+    // Basic Role UI (Prof/Admin vs Student)
+    // Note: admins are students with elevated privileges in a specific class, 
+    // but top-level 'role' in User doc is global. 
+    // We'll handle Class-Level Admin logic inside class view.
+
     if (currentRole === 'professor') {
         createClassBtn.style.display = 'block';
         joinClassBtn.style.display = 'none';
-        document.querySelectorAll('.prof-only').forEach(el => el.style.display = 'block');
+        document.querySelectorAll('.prof-only').forEach(el => el.style.display = 'block'); // Global prof-only
     } else {
         createClassBtn.style.display = 'none';
         joinClassBtn.style.display = 'block';
@@ -134,6 +145,38 @@ window.switchRole = async (newRole) => {
         } catch (err) {
             alert("Error: " + err.message);
         }
+    }
+};
+
+// ----------------------
+// MAIN NAVIGATION (Rail)
+// ----------------------
+window.switchMainView = (viewName) => {
+    currentMainView = viewName;
+
+    // Update Rail UI
+    document.querySelectorAll('.rail-item').forEach(el => el.classList.remove('active'));
+    if (viewName === 'classes') document.getElementById('nav-classes').classList.add('active');
+    if (viewName === 'chats') document.getElementById('nav-chats').classList.add('active');
+
+    // Update Main Area UI
+    if (viewName === 'classes') {
+        document.getElementById('direct-chat-view').style.display = 'none';
+
+        // Restore class view state or dashboard
+        if (currentClassId) {
+            dashboardView.style.display = 'none';
+            classView.style.display = 'flex';
+        } else {
+            dashboardView.style.display = 'block';
+            classView.style.display = 'none';
+        }
+    } else {
+        // Chats
+        dashboardView.style.display = 'none';
+        classView.style.display = 'none';
+        document.getElementById('direct-chat-view').style.display = 'flex';
+        loadDirectChats();
     }
 };
 
@@ -160,10 +203,7 @@ async function loadClasses() {
                     <p style="font-size:1.1rem; margin-bottom:10px;">No se encontraron clases.</p>
                     ${currentRole === 'professor'
                     ? '<p>¡Crea tu primera clase para empezar!</p>'
-                    : `<p>Haz clic en "Unirse con Código" para entrar a una clase.</p>
-                           <p style="margin-top:20px; font-size:0.8rem;">
-                             ¿Eres Profesor? <a href="#" onclick="switchRole('professor')" style="color:var(--primary)">Cambiar Rol</a>
-                           </p>`
+                    : `<p>Haz clic en "Unirse con Código" para entrar a una clase.</p>`
                 }
                 </div>
             `;
@@ -222,7 +262,11 @@ createClassForm.addEventListener('submit', async (e) => {
             professorId: currentUser.uid,
             code: code,
             createdAt: new Date(),
-            studentEmails: []
+            studentEmails: [],
+            admins: [], // Array of emails of class admins
+            settings: {
+                emojisEnabled: true
+            }
         });
 
         await addDoc(collection(db, "channels"), {
@@ -308,17 +352,51 @@ backToDashBtn.addEventListener('click', () => {
 // ----------------------
 
 function loadChannels(classId) {
-    const q = query(collection(db, "channels"), where("classId", "==", classId), orderBy("createdAt"));
+    // Use single orderBy to avoid composite index requirement issues initially
+    // We will do client side sorting for order if needed, but for now simple createdAt is safer without index setup
+    const q = query(collection(db, "channels"), where("classId", "==", classId));
+
+    // Setup Drag and Drop Container
+    if (currentRole === 'professor') {
+        setupDragAndDrop(channelsContainer);
+    }
 
     onSnapshot(q, (snapshot) => {
         channelsContainer.innerHTML = '';
-        let firstChannel = null;
+        const channels = [];
         snapshot.forEach((doc) => {
-            if (!firstChannel) firstChannel = { id: doc.id, ...doc.data() };
-            renderChannelItem(doc.id, doc.data());
+            channels.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Client-side sort: Order first (asc), then CreatedAt (asc)
+        channels.sort((a, b) => {
+            const orderA = a.order || 0;
+            const orderB = b.order || 0;
+            if (orderA !== orderB) return orderA - orderB;
+            return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0);
+        });
+
+        let firstChannel = null;
+        channels.forEach(ch => {
+            if (!firstChannel) firstChannel = ch;
+            renderChannelItem(ch.id, ch);
         });
 
         // Add Separator and Settings Item
+        // Add Separator and Settings Item
+        if (currentRole === 'professor') {
+            const sep = document.createElement('div');
+            sep.style.cssText = 'height: 1px; background: var(--border-color); margin: 10px 12px; opacity: 0.5;';
+            channelsContainer.appendChild(sep);
+
+            const addBtn = document.createElement('div');
+            addBtn.className = 'channel-item';
+            addBtn.style.color = 'var(--primary)';
+            addBtn.innerHTML = '<span class="channel-icon"><i class="fas fa-plus"></i></span><span>Nuevo Canal</span>';
+            addBtn.addEventListener('click', () => document.getElementById('add-channel-btn').click());
+            channelsContainer.appendChild(addBtn);
+        }
+
         const separator = document.createElement('div');
         separator.style.cssText = 'height: 1px; background: var(--border-color); margin: 10px 12px; opacity: 0.5;';
         channelsContainer.appendChild(separator);
@@ -344,14 +422,132 @@ function loadChannels(classId) {
 
 function renderChannelItem(id, data) {
     const div = document.createElement('div');
-    div.className = `channel-item ${currentChannelId === id ? 'active' : ''}`;
+    div.className = `channel-item ${currentChannelId === id ? 'active' : ''} ${currentRole === 'professor' ? 'draggable' : ''}`;
+
+    if (currentRole === 'professor') {
+        div.draggable = true;
+        div.dataset.id = id;
+        div.dataset.order = data.order || 0;
+    }
+
+    let settingsIcon = '';
+    if (currentRole === 'professor') {
+        settingsIcon = `<i class="fas fa-cog" style="margin-left:auto; opacity:0.5; font-size:0.8rem;" onclick="event.stopPropagation(); openChannelSettings('${id}')"></i>`;
+    }
+
     div.innerHTML = `
         <span class="channel-icon"><i class="fas ${data.type === 'tasks' ? 'fa-clipboard-list' : 'fa-hashtag'}"></i></span>
         <span>${data.name}</span>
+        ${settingsIcon}
     `;
     div.addEventListener('click', () => selectChannel(id, data));
     channelsContainer.appendChild(div);
 }
+
+// Drag and Drop Logic
+function setupDragAndDrop(container) {
+    container.addEventListener('dragstart', e => {
+        if (e.target.classList.contains('draggable')) {
+            e.target.classList.add('dragging');
+        }
+    });
+
+    container.addEventListener('dragend', async e => {
+        if (e.target.classList.contains('draggable')) {
+            e.target.classList.remove('dragging');
+            await saveChannelOrder();
+        }
+    });
+
+    container.addEventListener('dragover', e => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(container, e.clientY);
+        const draggable = document.querySelector('.dragging');
+        if (draggable) {
+            if (afterElement == null) {
+                // Insert before the static "New Channel" button if it exists, otherwise append
+                // Actually channelsContainer has static elements at bottom (separator, settings).
+                // We should only reorder valid channel items. 
+                // Simple approach: Insert before 'afterElement'
+                container.insertBefore(draggable, afterElement);
+            } else {
+                container.insertBefore(draggable, afterElement);
+            }
+        }
+    });
+}
+
+function getDragAfterElement(container, y) {
+    // Select only draggable channel items, ignore static ones
+    const draggableElements = [...container.querySelectorAll('.draggable:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+async function saveChannelOrder() {
+    const items = [...document.querySelectorAll('.channel-item.draggable')];
+    const updates = items.map((item, index) => {
+        const id = item.dataset.id;
+        return updateDoc(doc(db, "channels", id), {
+            order: index
+        });
+    });
+
+    // Optimistic update implied by DOM change, but let's await
+    try {
+        await Promise.all(updates);
+    } catch (e) {
+        console.error("Error saving order", e);
+    }
+}
+
+window.openChannelSettings = async (channelId) => {
+    const docSnap = await getDoc(doc(db, "channels", channelId));
+    if (!docSnap.exists()) return;
+    const data = docSnap.data();
+
+    document.getElementById('edit-channel-id').value = channelId;
+    document.getElementById('edit-channel-name').value = data.name;
+    document.getElementById('edit-channel-admin-only').checked = !!data.adminOnly;
+    document.getElementById('edit-channel-order').value = data.order || 0;
+
+    document.getElementById('channel-settings-modal').classList.add('active');
+};
+
+document.getElementById('channel-settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-channel-id').value;
+    const name = document.getElementById('edit-channel-name').value;
+    const adminOnly = document.getElementById('edit-channel-admin-only').checked;
+    const order = parseInt(document.getElementById('edit-channel-order').value) || 0;
+
+    await updateDoc(doc(db, "channels", id), {
+        name, adminOnly, order
+    });
+
+    document.getElementById('channel-settings-modal').classList.remove('active');
+});
+
+window.deleteCurrentChannel = async () => {
+    const id = document.getElementById('edit-channel-id').value;
+    if (confirm("¿Eliminar este canal y todos sus mensajes?")) {
+        await deleteDoc(doc(db, "channels", id));
+        document.getElementById('channel-settings-modal').classList.remove('active');
+        // Logic to clear view handled by listener usually, but might need forced reset if current channel
+        if (currentChannelId === id) {
+            messagesContainer.innerHTML = '';
+            currentChannelId = null;
+        }
+    }
+};
 
 function selectChannel(id, data) {
     currentChannelId = id;
@@ -361,16 +557,49 @@ function selectChannel(id, data) {
     document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
     // Re-rendering happens on snapshot, this is visual feedback for instant click
 
+    // Clear views immediately to avoid ghost content
+    messagesContainer.innerHTML = '';
+    tasksContainer.innerHTML = '';
+
     if (data.type === 'tasks') {
         messagesView.style.display = 'none';
         tasksView.style.display = 'flex';
         settingsView.style.display = 'none';
         loadTasks(id);
     } else {
-        tasksView.style.display = 'none';
+        tasksView.style.display = 'none'; // Ensure tasks view is hidden
         settingsView.style.display = 'none';
         messagesView.style.display = 'flex';
+
+        // Admin Only Check
+        checkChannelPermissions(id);
+
         loadMessages(id);
+    }
+}
+
+async function checkChannelPermissions(channelId) {
+    // Reset inputs
+    document.getElementById('message-input').disabled = false;
+    document.getElementById('message-input').placeholder = "Escribe un mensaje...";
+    document.querySelector('#message-form button').disabled = false;
+
+    const snap = await getDoc(doc(db, "channels", channelId));
+    if (!snap.exists()) return;
+    const data = snap.data();
+
+    // Check if user is Class Admin or Professor
+    const classSnap = await getDoc(doc(db, "classes", currentClassId));
+    if (!classSnap.exists()) return;
+    const classData = classSnap.data();
+
+    const isAdmin = classData.admins && classData.admins.includes(currentUser.email);
+    const isProf = classData.professorId === currentUser.uid;
+
+    if (data.adminOnly && !isAdmin && !isProf) {
+        document.getElementById('message-input').disabled = true;
+        document.getElementById('message-input').placeholder = "Solo administradores pueden enviar mensajes aquí.";
+        document.querySelector('#message-form button').disabled = true;
     }
 }
 
@@ -388,6 +617,7 @@ createChannelForm.addEventListener('submit', async (e) => {
         classId: currentClassId,
         name: name,
         type: type,
+        adminOnly: document.getElementById('channel-admin-only').checked,
         createdAt: new Date()
     });
     createChannelModal.classList.remove('active');
@@ -419,6 +649,7 @@ async function uploadToYeet(file) {
 }
 
 // ----------------------
+// ----------------------
 // MESSAGES LOGIC
 // ----------------------
 
@@ -435,35 +666,127 @@ chatFileInput.addEventListener('change', async (e) => {
     }
 });
 
-function loadMessages(channelId) {
+/* Reply State */
+let replyState = null; // { id, userName, text }
+
+window.startReply = (id, userName, text) => {
+    replyState = { id, userName, text };
+    const indicator = currentMainView === 'chats' ? document.getElementById('direct-reply-indicator-container') : document.getElementById('reply-indicator-container');
+    indicator.style.display = 'block';
+    indicator.innerHTML = `Replying to <b>${userName}</b>: ${text} <button onclick="cancelReply()" style="margin-left:10px; border:none; background:transparent;">&times;</button>`;
+
+    if (currentMainView === 'chats') document.getElementById('direct-message-input').focus();
+    else document.getElementById('message-input').focus();
+};
+
+window.cancelReply = () => {
+    replyState = null;
+    document.getElementById('reply-indicator-container').style.display = 'none';
+    document.getElementById('direct-reply-indicator-container').style.display = 'none';
+};
+
+/* Media Viewer */
+window.openMedia = (url, type) => {
+    const modal = document.getElementById('media-viewer-modal');
+    const content = document.getElementById('media-viewer-content');
+
+    if (type === 'image') {
+        content.innerHTML = `<img src="${url}">`;
+    } else if (type === 'pdf') {
+        content.innerHTML = `<iframe src="${url}"></iframe>`;
+    }
+
+    modal.classList.add('active');
+};
+// Make sure to define refreshUserAvatars BEFORE it's called in renderMessage
+// ----------------------
+// GLOBAL USER CACHE
+// ----------------------
+const userCache = {}; // { uid: { photoURL, email, displayName, ... } }
+const emailToUidCache = {};
+
+async function getUserProfile(uid) {
+    if (userCache[uid]) return userCache[uid];
+    try {
+        const snap = await getDoc(doc(db, "users", uid));
+        if (snap.exists()) {
+            userCache[uid] = snap.data();
+            return snap.data();
+        }
+    } catch (e) {
+        console.error(e);
+    }
+    return null;
+}
+
+async function getUserProfileByEmail(email) {
+    if (emailToUidCache[email] && userCache[emailToUidCache[email]]) {
+        return userCache[emailToUidCache[email]];
+    }
+
+    try {
+        const q = query(collection(db, "users"), where("email", "==", email));
+        const snaps = await getDocs(q);
+        if (!snaps.empty) {
+            const data = snaps.docs[0].data();
+            const uid = snaps.docs[0].id;
+            userCache[uid] = data;
+            emailToUidCache[email] = uid;
+            return data;
+        }
+    } catch (e) { console.error(e); }
+    return null;
+}
+
+// Updates all avatar elements for a specific user ID on the page
+async function refreshUserAvatars(uid) {
+    const profile = await getUserProfile(uid);
+    const photoURL = profile ? profile.photoURL : null;
+
+    if (photoURL) {
+        document.querySelectorAll(`.user-avatar-${uid}`).forEach(el => {
+            el.innerHTML = `<img src="${photoURL}">`;
+        });
+    }
+}
+
+
+function loadMessages(channelId, containerOverride = null) {
+    const targetContainer = containerOverride || messagesContainer;
+    activeMessageContainer = targetContainer; // Update global reference
+
+    // Clear immediately
+    targetContainer.innerHTML = '';
+
     const q = query(collection(db, "messages"), where("channelId", "==", channelId), orderBy("createdAt", "asc"));
 
     onSnapshot(q, (snapshot) => {
-        messagesContainer.innerHTML = '';
+        targetContainer.innerHTML = '';
         snapshot.forEach((doc) => {
-            renderMessage(doc.data());
+            // Pass ID by merging it
+            renderMessage({ id: doc.id, ...doc.data() }, targetContainer);
         });
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        targetContainer.scrollTop = targetContainer.scrollHeight;
     });
 }
 
-// ... ensured above via large replacement ...
-// Just verifying the previous replace covers renderMessage correctly.
-// Since the previous ReplaceContent covered from "Auth State Listener" (line 35) but ended before "loadClasses", it missed "renderMessage".
-// My previous tool call REPLACED "Auth State Listener" block essentially with "updateProfileUI" and the new auth listener.
-// BUT I also need to replace "renderMessage". The previous tool call target text was mostly the Auth block. It also included renderMessage in replacement content but it might have been cut off or misplaced if the target text didn't span that far.
-// Actually, looking at the previous tool call, I targeted the Auth Block primarily.
-// I need to explicitly replace the old renderMessage and messageForm listener now.
+function renderMessage(data, container = activeMessageContainer) {
+    if (!container) return; // Safety check
 
-function renderMessage(data) {
     const div = document.createElement('div');
     div.className = 'message';
+    div.id = `msg-${data.id}`;
 
     // Determine Avatar (Use stored photoURL if available, else letter)
-    let avatarHtml = `<div class="avatar">${data.userName[0].toUpperCase()}</div>`;
+    // We add a specific class to update this avatar later if the user profile changes or if we want to confirm the latest photo
+    // We try to use the stored userPhoto as immediate placeholder
+    let avatarHtml = `<div class="avatar user-avatar-${data.userId}">${data.userName[0].toUpperCase()}</div>`;
     if (data.userPhoto) {
-        avatarHtml = `<div class="avatar"><img src="${data.userPhoto}"></div>`;
+        avatarHtml = `<div class="avatar user-avatar-${data.userId}"><img src="${data.userPhoto}"></div>`;
     }
+
+    // Trigger async refresh to ensure we have the very latest photo from the user Profile (normalization)
+    if (data.userId) refreshUserAvatars(data.userId);
 
     // Determine Content
     let content = `<p>${data.text}</p>`;
@@ -475,11 +798,11 @@ function renderMessage(data) {
         if (isImg) {
             // Image Card
             content += `
-                <div class="teams-attachment-card" onclick="window.open('${data.fileUrl}')">
+                <div class="teams-attachment-card" onclick="openMedia('${data.fileUrl}', 'image')">
                     <div class="card-preview">
                         <img src="${data.fileUrl}">
                         <div class="preview-overlay">
-                            <div class="preview-btn"><i class="fas fa-expand"></i> Vista previa</div>
+                            <div class="preview-btn"><i class="fas fa-expand"></i> Ver</div>
                         </div>
                     </div>
                      <div class="card-metadata">
@@ -487,106 +810,209 @@ function renderMessage(data) {
                         <div class="file-info">
                             <div class="filename">${data.fileName}</div>
                         </div>
-                        <div class="card-actions"><i class="fas fa-ellipsis-h"></i></div>
+                    </div>
+                </div>
+            `;
+        } else if (isPdf) {
+            content += `
+                 <div class="teams-attachment-card" onclick="openMedia('${data.fileUrl}', 'pdf')">
+                    <div class="card-preview pdf-preview">
+                        <div class="fake-doc">
+                            <div class="fake-doc-header"><i class="fas fa-file-pdf"></i></div>
+                            <div class="fake-doc-line"></div>
+                            <div class="fake-doc-line"></div>
+                            <div class="fake-doc-line short"></div>
+                            <div class="fake-doc-line"></div>
+                            <div class="fake-doc-line"></div>
+                        </div>
+                         <div class="preview-overlay">
+                            <div class="preview-btn"><i class="fas fa-eye"></i> Leer</div>
+                        </div>
+                    </div>
+                    <div class="card-metadata">
+                        <div class="file-icon-large file-icon-pdf"><i class="fas fa-file-pdf"></i></div>
+                        <div class="file-info">
+                            <div class="filename">${data.fileName}</div>
+                        </div>
                     </div>
                 </div>
             `;
         } else {
-            // Generic/PDF Card
-            const iconClass = isPdf ? 'file-icon-pdf' : 'file-icon-large';
-            const iconIcon = isPdf ? 'fa-file-pdf' : 'fa-file-alt';
-
+            // Generic Download Only
             content += `
-                 <div class="teams-attachment-card" onclick="window.open('${data.fileUrl}')">
-                    <div class="card-preview ${isPdf ? 'pdf-preview' : ''}">
-                         ${isPdf ? `
-                            <div class="fake-doc">
-                                <div class="fake-doc-header"><i class="fas fa-file-pdf"></i></div>
-                                <div class="fake-doc-line"></div>
-                                <div class="fake-doc-line"></div>
-                                <div class="fake-doc-line short"></div>
-                                <div class="fake-doc-line"></div>
-                                <div class="fake-doc-line"></div>
-                                <div class="fake-doc-line short"></div>
-                            </div>
-                         ` : '<i class="fas fa-file" style="font-size:3rem; color:#cbd5e1;"></i>'}
-                         
-                         <div class="preview-overlay">
-                            <div class="preview-btn"><i class="fas fa-eye"></i> Vista previa</div>
-                        </div>
+                <div class="teams-attachment-card" onclick="window.open('${data.fileUrl}')">
+                     <div class="card-preview" style="background:#f8fafc; color:#cbd5e1;">
+                         <i class="fas fa-file" style="font-size:3rem;"></i>
                     </div>
                     <div class="card-metadata">
-                        <div class="file-icon-large ${iconClass}"><i class="fas ${iconIcon}"></i></div>
+                        <div class="file-icon-large"><i class="fas fa-file-alt"></i></div>
                         <div class="file-info">
                             <div class="filename">${data.fileName}</div>
                         </div>
-                        <div class="card-actions"><i class="fas fa-ellipsis-h"></i></div>
                     </div>
                 </div>
             `;
         }
     }
 
+    // Reply Quote
+    let replyHtml = '';
+    if (data.replyTo) {
+        replyHtml = `
+            <div class="quoted-message">
+                <strong>${data.replyTo.userName}</strong>: ${data.replyTo.text}
+            </div>
+        `;
+    }
+
+    // Message Actions (Delete for Prof)
+    let deleteBtn = '';
+
+    // Check if I am professor of this class
+    if (currentRole === 'professor') {
+        deleteBtn = `<button class="reply-btn" style="color:#ef4444;" onclick="deleteMessage('${data.id}')"><i class="fas fa-trash"></i></button>`;
+    }
+
     div.innerHTML = `
         ${avatarHtml}
-        <div class="msg-content">
-            <h4>${data.userName} <span style="font-size:0.75rem; color:var(--text-dim); font-weight:400; margin-left:8px;">${new Date(data.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></h4>
+        <div class="msg-content" style="flex:1;">
+            <h4>
+                ${data.userName} 
+                <span style="font-size:0.75rem; color:var(--text-dim); font-weight:400; margin-left:8px;">
+                    ${new Date(data.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+            </h4>
+            ${replyHtml}
             ${content}
+            <div class="message-actions" style="display:flex; gap:10px;">
+                <button class="reply-btn" onclick="startReply('${data.id}', '${data.userName}', '${data.text ? data.text.substr(0, 40).replace(/'/g, "\\'") + '...' : 'Archivo'}')">
+                    <i class="fas fa-reply"></i> Responder
+                </button>
+                ${deleteBtn}
+            </div>
         </div>
     `;
-    messagesContainer.appendChild(div);
+
+    container.appendChild(div);
 }
 
-messageForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const input = document.getElementById('message-input');
-    const text = input.value;
+window.deleteMessage = async (msgId) => {
+    if (confirm("¿Borrar mensaje?")) {
+        await deleteDoc(doc(db, "messages", msgId));
+    }
+};
 
-    if (!text.trim() && !currentChatFile) return;
+
+
+
+// SEND MESSAGE LOGIC (Refactored to support Direct Chats)
+async function handleSendMessage(inputEl, fileInputEl, formPreviewEl, channelId, formElement) {
+    const text = inputEl.value;
+    const fileFile = fileInputEl.files[0];
+
+    if (!text.trim() && !fileFile) return;
 
     let fileData = null;
     let msgType = 'text';
 
-    if (currentChatFile) {
-        chatPreview.innerHTML = 'Uploading... <i class="fas fa-spinner fa-spin"></i>';
+    if (fileFile) {
+        formPreviewEl.innerHTML = 'Uploading... <i class="fas fa-spinner fa-spin"></i>';
+        formPreviewEl.style.display = 'block';
         try {
-            const uploaded = await uploadToYeet(currentChatFile);
+            const uploaded = await uploadToYeet(fileFile);
             fileData = {
                 fileUrl: uploaded.url,
                 fileName: uploaded.filename,
-                contentType: currentChatFile.type
+                contentType: fileFile.type
             };
             msgType = 'file';
         } catch (err) {
             alert(err.message);
-            chatPreview.style.display = 'none';
-            currentChatFile = null;
+            formPreviewEl.style.display = 'none';
+            fileInputEl.value = '';
             return;
         }
     }
 
-    // Get current user photo to bake into message (optimization)
+    // Get current user photo and display name
     let userPhoto = null;
-    try {
-        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-        userPhoto = userDoc.exists() ? userDoc.data().photoURL : null;
-    } catch (e) { }
+    let displayName = currentUser.email.split('@')[0]; // Default fallback
 
-    await addDoc(collection(db, "messages"), {
-        channelId: currentChannelId,
+    try {
+        // We can reuse the getUserProfile cache function if we move it up or just fetch here
+        // Since we are inside module, we can access getUserProfile if defined in scope.
+        // But getUserProfile is defined above.
+        const profile = await getUserProfile(currentUser.uid);
+        if (profile) {
+            userPhoto = profile.photoURL || null;
+            if (profile.displayName) displayName = profile.displayName;
+            else if (profile.firstName && profile.lastName) displayName = `${profile.firstName} ${profile.lastName}`;
+        }
+    } catch (e) { console.error("Error fetching user profile for message", e); }
+
+    const msgData = {
+        channelId: channelId,
         text: text,
         userId: currentUser.uid,
-        userName: currentUser.email.split('@')[0],
+        userName: displayName,
         userPhoto: userPhoto,
         createdAt: new Date(),
         type: msgType,
         ...fileData
-    });
+    };
 
-    input.value = '';
+    if (replyState) {
+        msgData.replyTo = {
+            id: replyState.id,
+            userName: replyState.userName,
+            text: replyState.text
+        };
+    }
+
+    await addDoc(collection(db, "messages"), msgData);
+
+    cancelReply();
+    inputEl.value = '';
+    formPreviewEl.style.display = 'none';
+    fileInputEl.value = '';
+    // Reset file global tracking if using old one (will deprecate)
     currentChatFile = null;
-    chatPreview.style.display = 'none';
-    chatFileInput.value = '';
+}
+
+messageForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentChannelId) return;
+    await handleSendMessage(
+        document.getElementById('message-input'),
+        chatFileInput, // Using global variable or query selector? chatFileInput is defined top of file
+        chatPreview,
+        currentChannelId,
+        messageForm
+    );
+});
+
+directMessageForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentDirectChatId) return;
+    await handleSendMessage(
+        document.getElementById('direct-message-input'),
+        document.getElementById('direct-chat-file-input'),
+        document.getElementById('direct-chat-upload-preview'),
+        currentDirectChatId,
+        directMessageForm
+    );
+});
+
+// File Input Listeners for Preview
+document.getElementById('direct-chat-file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    const preview = document.getElementById('direct-chat-upload-preview');
+    if (file) {
+        preview.style.display = 'block';
+        preview.innerHTML = `<i class="fas fa-paperclip"></i> ${file.name} (Listo para enviar)`;
+    } else {
+        preview.style.display = 'none';
+    }
 });
 
 // ----------------------
@@ -798,13 +1224,22 @@ async function loadAllSubmissions(taskId) {
     snap.forEach(doc => {
         const d = doc.data();
         const div = document.createElement('div');
-        div.style.cssText = "background:white; padding:15px; border-radius:12px; border:1px solid var(--border-color); box-shadow:var(--shadow-soft);";
+        div.className = "submission-item";
+        div.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:15px; border-bottom:1px solid var(--border-color);";
 
         div.innerHTML = `
-             <div style="font-weight:600; margin-bottom:5px;">${d.studentEmail}</div>
-             <div style="font-size:0.8rem; color:var(--text-dim); margin-bottom:10px;">${new Date(d.createdAt.toDate()).toLocaleString()}</div>
-             <a href="${d.link}" target="_blank" style="display:block; padding:8px; background:var(--bg-app); border-radius:6px; text-decoration:none; color:var(--primary); text-align:center; font-size:0.9rem;">
-                 <i class="fas fa-download"></i> Descargar Archivo
+             <div style="display:flex; flex-direction:column; gap:4px;">
+                <div style="font-weight:600; color:var(--text-main);">${d.studentEmail}</div>
+                <div style="font-size:0.8rem; color:var(--text-dim);">${new Date(d.createdAt.toDate()).toLocaleString()}</div>
+             </div>
+             <a href="${d.link}" target="_blank" class="submission-link-card">
+                 <div style="width:32px; height:32px; background:var(--bg-app); border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--primary);">
+                    <i class="fas fa-file-invoice"></i>
+                 </div>
+                 <div style="display:flex; flex-direction:column;">
+                    <span style="font-weight:600; font-size:0.9rem;">${d.fileName || 'Archivo'}</span>
+                    <span style="font-size:0.75rem; color:var(--text-dim);">Clic para ver</span>
+                 </div>
              </a>
          `;
         container.appendChild(div);
@@ -897,28 +1332,63 @@ window.openSettings = async () => {
     document.getElementById('settings-class-name').textContent = classData.name;
     document.getElementById('settings-class-code').textContent = classData.code || 'N/A';
 
-    // Members List
+    // Load Class Settings
+    document.getElementById('settings-emojis-enabled').checked = classData.settings?.emojisEnabled !== false;
+
+    // Save Settings Handler (Auto-save)
+    document.getElementById('settings-emojis-enabled').onclick = async (e) => {
+        await updateDoc(doc(db, "classes", currentClassId), {
+            "settings.emojisEnabled": e.target.checked
+        });
+    };
+
+    // Members List with Admin Promotio Logic
     const membersList = document.getElementById('settings-members-list');
     membersList.innerHTML = '<div class="loader" style="padding:20px;"></div>';
 
     const students = classData.studentEmails || [];
+    const admins = classData.admins || [];
+    const isProf = classData.professorId === currentUser.uid;
+    const amIAdmin = admins.includes(currentUser.email) || isProf;
 
     if (students.length === 0) {
         membersList.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-dim);">No hay estudiantes todavía.</div>';
     } else {
         let html = '';
         students.forEach(email => {
+            const isStudentAdmin = admins.includes(email);
+            let actionBtn = '';
+
+            if (isProf) {
+                if (isStudentAdmin) {
+                    actionBtn = `<button onclick="toggleAdmin('${email}', false)" style="width:auto; padding:4px 10px; font-size:0.75rem; background:#fee2e2; color:#ef4444; margin:0;">Quitar Admin</button>`;
+                } else {
+                    actionBtn = `<button onclick="toggleAdmin('${email}', true)" style="width:auto; padding:4px 10px; font-size:0.75rem; background:#e0e7ff; color:var(--primary); margin:0;">Hacer Admin</button>`;
+                }
+            }
+
             html += `
-                <div style="padding: 12px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px;">
-                    <div class="avatar" style="width: 32px; height: 32px; font-size: 0.9rem;">${email[0].toUpperCase()}</div>
-                    <span>${email}</span>
+                <div style="padding: 12px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div class="avatar" style="width: 32px; height: 32px; font-size: 0.9rem;">${email[0].toUpperCase()}</div>
+                        <div>
+                            <div style="font-weight:500;">${email}</div>
+                             ${isStudentAdmin ? '<span style="font-size:0.75rem; background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px;">Admin</span>' : '<span style="font-size:0.75rem; color:var(--text-dim);">Estudiante</span>'}
+                        </div>
+                    </div>
+                    ${actionBtn}
                 </div>
             `;
         });
         membersList.innerHTML = html;
     }
 
-    // Show/Hide Role specific sections
+    // Role Visibility for Settings
+    // Show "Class Settings Controls" only to Admins/Profs
+    const controls = document.getElementById('class-settings-controls');
+    if (controls) controls.style.display = amIAdmin ? 'block' : 'none';
+
+    // Danger Zone - Leave for Students, Delete for Prof
     const profOnly = settingsView.querySelectorAll('.prof-only');
     const studentOnly = settingsView.querySelectorAll('.student-only');
 
@@ -926,8 +1396,34 @@ window.openSettings = async () => {
         profOnly.forEach(el => el.style.display = 'block');
         studentOnly.forEach(el => el.style.display = 'none');
     } else {
-        profOnly.forEach(el => el.style.display = 'none');
+        // If student, check if admin for some settings?
+        // Actually, deleting class is STRICTLY Professor. 
+        // "Class Settings" (emojis) is for Admins too.
+
+        profOnly.forEach(el => {
+            // Exception: class settings controls are handled above separately
+            if (el.id !== 'class-settings-controls') el.style.display = 'none';
+        });
         studentOnly.forEach(el => el.style.display = 'block');
+    }
+};
+
+window.toggleAdmin = async (email, makeAdmin) => {
+    if (!confirm(makeAdmin ? `¿Hacer a ${email} administrador?` : `¿Quitar permisos de admin a ${email}?`)) return;
+
+    try {
+        if (makeAdmin) {
+            await updateDoc(doc(db, "classes", currentClassId), {
+                admins: arrayUnion(email)
+            });
+        } else {
+            await updateDoc(doc(db, "classes", currentClassId), {
+                admins: arrayRemove(email)
+            });
+        }
+        openSettings(); // Reload
+    } catch (e) {
+        alert("Error: " + e.message);
     }
 };
 
@@ -943,9 +1439,132 @@ window.deleteThisClass = async () => {
 window.leaveThisClass = async () => {
     if (confirm("¿Salir de esta clase?")) {
         await updateDoc(doc(db, "classes", currentClassId), {
-            studentEmails: arrayRemove(currentUser.email)
+            studentEmails: arrayRemove(currentUser.email),
+            admins: arrayRemove(currentUser.email) // Also remove from admins if they leave
         });
         alert("Saliste de la clase.");
         document.getElementById('back-to-dash').click();
     }
 };
+
+window.addStudentByEmail = async () => {
+    const email = document.getElementById('add-student-email').value.trim();
+    if (!email) return;
+
+    // Add to studentEmails array
+    // Note: This doesn't validate if user exists in 'users' collection, but that's fine for now. 
+    // They will see the class when they log in with that email.
+
+    try {
+        await updateDoc(doc(db, "classes", currentClassId), {
+            studentEmails: arrayUnion(email)
+        });
+        alert(`${email} añadido a la clase.`);
+        document.getElementById('add-student-email').value = '';
+        openSettings(); // Refresh list
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+};
+
+// ----------------------
+// DIRECT CHATS LOGIC
+// ----------------------
+let currentDirectChatId = null;
+
+async function loadDirectChats() {
+    const chatList = document.getElementById('direct-chat-list');
+    chatList.innerHTML = '<div class="loader" style="padding:20px;"></div>';
+
+    const q = query(collection(db, "direct_chats"), where("participantEmails", "array-contains", currentUser.email));
+
+    onSnapshot(q, (snapshot) => {
+        chatList.innerHTML = '';
+        if (snapshot.empty) {
+            chatList.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-dim);">No tienes chats recientes.</div>';
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            renderChatListItem(doc.id, doc.data());
+        });
+    });
+}
+
+function renderChatListItem(id, data) {
+    const list = document.getElementById('direct-chat-list');
+    const otherEmail = data.participantEmails.find(e => e !== currentUser.email);
+
+    // Fallback if chatting with self (unlikely but possible) or array issue
+    const displayName = otherEmail || "Usuario Desconocido";
+
+    const div = document.createElement('div');
+    div.className = `chat-list-item ${currentDirectChatId === id ? 'active' : ''}`;
+    div.innerHTML = `
+        <div class="avatar" style="width:36px; height:36px; font-size:1rem;">${displayName[0].toUpperCase()}</div>
+        <div style="font-weight:500;">${displayName}</div>
+    `;
+    div.addEventListener('click', () => selectDirectChat(id, displayName));
+    list.appendChild(div);
+}
+
+async function selectDirectChat(chatId, displayName) {
+    currentDirectChatId = chatId;
+    document.getElementById('direct-chat-placeholder').style.display = 'none';
+    document.getElementById('direct-chat-content-area').style.display = 'flex';
+
+    document.getElementById('direct-chat-header-name').textContent = displayName;
+    document.getElementById('direct-chat-header-avatar').textContent = displayName[0].toUpperCase();
+
+    // Highlight active in list
+    document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active'));
+    // We would need to match ID again but re-render handles it usually. 
+
+    loadMessages(chatId, document.getElementById('direct-messages-container'));
+}
+
+// Start New Chat
+document.getElementById('new-chat-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('new-chat-email').value.trim();
+    if (!email) return;
+
+    if (email === currentUser.email) {
+        alert("No puedes chatear contigo mismo.");
+        return;
+    }
+
+    try {
+        const q = query(collection(db, "direct_chats"),
+            where("participantEmails", "array-contains", currentUser.email)
+        );
+        const snaps = await getDocs(q);
+        let existingId = null;
+
+        snaps.forEach(d => {
+            if (d.data().participantEmails.includes(email)) existingId = d.id;
+        });
+
+        if (existingId) {
+            selectDirectChat(existingId, email);
+            document.getElementById('new-chat-modal').classList.remove('active');
+            return;
+        }
+
+        // Create new
+        const newDoc = await addDoc(collection(db, "direct_chats"), {
+            participantEmails: [currentUser.email, email],
+            participants: [currentUser.uid], // We don't have other UID easily without querying users collection. 
+            // Just use emails for now as ID.
+            createdAt: new Date(),
+            lastUpdated: new Date()
+        });
+
+        document.getElementById('new-chat-modal').classList.remove('active');
+        document.getElementById('new-chat-email').value = '';
+        selectDirectChat(newDoc.id, email);
+
+    } catch (err) {
+        alert("Error: " + err.message);
+    }
+});
