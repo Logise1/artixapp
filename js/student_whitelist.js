@@ -41,3 +41,15 @@ export const studentWhitelist = [
     { name: "CARLA GOZALO", email: "c.gozalo@artica.jrotero.es" },
     { name: "HÉCTOR ASUNCIÓN", email: "h.asuncion@artica.jrotero.es" }
 ];
+
+export const teacherWhitelist = [
+    { name: "Veronica Jimenez", email: "veronica.jimenez@jrotero.es" },
+    { name: "Sergio Montoro", email: "sergio.montoro@jrotero.es" },
+    { name: "German Cela", email: "german.cela@jrotero.es" },
+    { name: "Ruben Lopez", email: "ruben.lopez@jrotero.es" },
+    { name: "Raquel Crisenti", email: "raquel.crisenti@jrotero.es" },
+    { name: "Alfredo Garcia", email: "Alfredo.garcia@jrotero.es" },
+    { name: "Blanca Esteban", email: "blanca.esteban@jrotero.es" },
+    { name: "Alberto Caro", email: "alberto.caro@jrotero.es" },
+    { name: "Jesus Bravo", email: "jesus.bravo@jrotero.es" }
+];

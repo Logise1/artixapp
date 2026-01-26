@@ -48,6 +48,10 @@
                 <i class="fas fa-comment-dots"></i>
                 <div class="tooltip">Chat</div>
             </div>
+            <div class="rail-item" id="nav-drive" onclick="window.location.href='drive.html'">
+                <i class="fas fa-cloud"></i>
+                <div class="tooltip">Mi Drive</div>
+            </div>
         </div>
 
         <!-- Main View Container -->
@@ -281,6 +285,48 @@
                         </div>
                     </div>
 
+                    <!-- Files View -->
+                    <div id="files-view"
+                        style="flex: 1; display: none; flex-direction: column; overflow: hidden; background:#f8fafc;">
+                        <div style="padding: 24px; border-bottom: 1px solid var(--border-color); background:white;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <button id="files-back-btn" onclick="navigateToParentFolder()"
+                                        style="width: auto; padding: 8px 12px; background: transparent; color: var(--text-dim); margin: 0; display: none;">
+                                        <i class="fas fa-arrow-left"></i>
+                                    </button>
+                                    <h2 id="current-folder-name" style="font-size:1.5rem; font-weight:700; margin:0;">
+                                        Archivos</h2>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button id="upload-file-btn"
+                                        style="width: auto; background: white; color: var(--primary); border: 1px solid var(--primary); margin: 0;">
+                                        <i class="fas fa-upload"></i> Subir Archivo
+                                    </button>
+                                    <button id="create-folder-btn" style="width: auto; margin: 0;">
+                                        <i class="fas fa-folder-plus"></i> Nueva Carpeta
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Breadcrumb -->
+                            <div id="files-breadcrumb"
+                                style="margin-top: 15px; font-size: 0.9rem; color: var(--text-dim);"></div>
+                        </div>
+
+                        <div id="files-container" style="flex: 1; overflow-y: auto; padding: 24px;">
+                            <div id="files-grid"
+                                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px;">
+                                <!-- Files and folders will be injected here -->
+                            </div>
+                            <div id="files-empty-state"
+                                style="display: none; text-align: center; padding: 60px 20px; color: var(--text-dim);">
+                                <i class="fas fa-folder-open"
+                                    style="font-size: 4rem; opacity: 0.3; margin-bottom: 20px;"></i>
+                                <p>Esta carpeta está vacía</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Settings View -->
                     <div id="settings-view"
                         style="flex: 1; display: none; flex-direction: column; overflow-y: auto; padding: 32px; background: white;">
@@ -451,6 +497,7 @@
                     <select id="channel-type">
                         <option value="chat">Chat de Texto</option>
                         <option value="tasks">Asignaciones</option>
+                        <option value="files">Archivos</option>
                     </select>
                 </div>
                 <div class="input-group" style="display:flex; align-items:center; gap:10px;">
@@ -573,6 +620,97 @@
                 </div>
                 <button type="submit">Iniciar Chat</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Create Folder Modal -->
+    <div id="create-folder-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nueva Carpeta</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="create-folder-form">
+                <div class="input-group">
+                    <label>Nombre de la Carpeta</label>
+                    <input type="text" id="folder-name-input" required placeholder="ej. Tema 1">
+                </div>
+                <button type="submit">Crear Carpeta</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload File Modal -->
+    <div id="upload-file-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Subir Archivo</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="upload-file-form">
+                <div class="input-group">
+                    <label>Seleccionar Archivo</label>
+                    <input type="file" id="file-upload-input" required>
+                </div>
+                <div id="upload-progress" style="display: none; margin: 15px 0;">
+                    <div style="background: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden;">
+                        <div id="upload-progress-bar"
+                            style="background: var(--primary); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                    <p id="upload-status"
+                        style="text-align: center; margin-top: 10px; color: var(--text-dim); font-size: 0.9rem;">
+                        Subiendo...</p>
+                </div>
+                <button type="submit" id="upload-submit-btn">Subir</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Rename/Edit Modal -->
+    <div id="rename-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Renombrar</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="rename-form">
+                <input type="hidden" id="rename-item-id">
+                <div class="input-group">
+                    <label>Nuevo Nombre</label>
+                    <input type="text" id="rename-input" required>
+                </div>
+                <button type="submit">Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- File Context Menu -->
+    <div id="file-context-menu"
+        style="display: none; position: fixed; background: white; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; min-width: 180px;">
+        <div class="context-menu-item" onclick="contextMenuAction('download')">
+            <i class="fas fa-download"></i> Descargar
+        </div>
+        <div class="context-menu-item" onclick="contextMenuAction('rename')">
+            <i class="fas fa-edit"></i> Renombrar
+        </div>
+        <div class="context-menu-item" onclick="contextMenuAction('move')">
+            <i class="fas fa-folder-open"></i> Mover
+        </div>
+        <div class="context-menu-item" onclick="contextMenuAction('delete')" style="color: #ef4444;">
+            <i class="fas fa-trash"></i> Eliminar
+        </div>
+    </div>
+
+    <!-- Move File Modal -->
+    <div id="move-file-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Mover a...</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div id="move-folders-list" style="max-height: 400px; overflow-y: auto; padding: 20px 0;">
+                <!-- Folder list will be injected here -->
+            </div>
         </div>
     </div>
 

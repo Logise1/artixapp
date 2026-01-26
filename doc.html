@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="doc-title">Documento sin título | Artix</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        :root {
+            --toolbar-height: 120px;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .doc-header {
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .doc-title-input {
+            font-size: 1.2rem;
+            font-weight: 600;
+            border: none;
+            outline: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .doc-title-input:hover,
+        .doc-title-input:focus {
+            background: var(--bg-hover);
+        }
+
+        .toolbar {
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .editor-content img {
+            max-width: 100%;
+            height: auto;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        /* Image resize wrapper */
+        .image-resize-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 5px;
+        }
+
+        .image-resize-wrapper.selected {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        .image-resize-wrapper img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Resize handles (8 points) */
+        .resize-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            display: none;
+        }
+
+        .image-resize-wrapper.selected .resize-handle {
+            display: block;
+        }
+
+        .resize-handle.nw {
+            top: -4px;
+            left: -4px;
+            cursor: nw-resize;
+        }
+
+        .resize-handle.n {
+            top: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: n-resize;
+        }
+
+        .resize-handle.ne {
+            top: -4px;
+            right: -4px;
+            cursor: ne-resize;
+        }
+
+        .resize-handle.e {
+            top: 50%;
+            right: -4px;
+            transform: translateY(-50%);
+            cursor: e-resize;
+        }
+
+        .resize-handle.se {
+            bottom: -4px;
+            right: -4px;
+            cursor: se-resize;
+        }
+
+        .resize-handle.s {
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: s-resize;
+        }
+
+        .resize-handle.sw {
+            bottom: -4px;
+            left: -4px;
+            cursor: sw-resize;
+        }
+
+        .resize-handle.w {
+            top: 50%;
+            left: -4px;
+            transform: translateY(-50%);
+            cursor: w-resize;
+        }
+
+        /* Upload progress modal */
+        .upload-progress-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            display: none;
+            text-align: center;
+        }
+
+        .upload-progress-modal.active {
+            display: block;
+        }
+
+        .upload-progress-modal .spinner {
+            font-size: 2rem;
+            color: var(--primary);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 5px;
+            padding: 5px;
+            border-radius: 6px;
+            background: var(--bg-app);
+        }
+
+        .toolbar-btn {
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #334155;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .toolbar-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .toolbar-btn i {
+            color: inherit;
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 30px;
+            background: var(--border-color);
+            margin: 0 5px;
+        }
+
+        select.toolbar-select {
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        input[type="color"].color-picker {
+            width: 40px;
+            height: 35px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .editor-container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            min-height: calc(100vh - var(--toolbar-height) - 100px);
+        }
+
+        .editor-content {
+            background: white;
+            padding: 60px 80px;
+            min-height: 800px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            outline: none;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #1a1a1a;
+        }
+
+        .editor-content:focus {
+            box-shadow: 0 0 20px rgba(79, 70, 229, 0.2);
+        }
+
+        .share-btn {
+            background: var(--primary);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .share-btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .link-item {
+            background: var(--bg-hover);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .link-url {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+
+        .copy-btn {
+            padding: 6px 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .permission-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .permission-badge.edit {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .permission-badge.view {
+            background: #e0e7ff;
+            color: #4f46e5;
+        }
+
+        .saving-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .saving-indicator.saving {
+            color: var(--primary);
+        }
+
+        .saving-indicator.saved {
+            color: #16a34a;
+        }
+
+        /* Real-time collaborators */
+        .collaborators-list {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .collaborator-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: white;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .collaborator-count {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-left: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <div class="doc-header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="drive.html" style="color: var(--text-dim); text-decoration: none;">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <input type="text" class="doc-title-input" id="document-name" placeholder="Documento sin título">
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="collaborators-list" id="collaborators-list"></div>
+            <div class="saving-indicator" id="save-status">
+                <i class="fas fa-circle-notch fa-spin" style="display: none;"></i>
+                <i class="fas fa-check" style="display: none;"></i>
+                <span>Guardando...</span>
+            </div>
+            <button class="share-btn" onclick="openShareModal()">
+                <i class="fas fa-share-alt"></i> Compartir
+            </button>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <!-- Font & Size -->
+        <div class="toolbar-group">
+            <select class="toolbar-select" id="font-family" onchange="execCommand('fontName', this.value)">
+                <option value="Arial">Arial</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Courier New">Courier New</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Verdana">Verdana</option>
+                <option value="Inter" selected>Inter</option>
+            </select>
+            <select class="toolbar-select" id="font-size" onchange="execCommand('fontSize', this.value)">
+                <option value="1">8pt</option>
+                <option value="2">10pt</option>
+                <option value="3">12pt</option>
+                <option value="4" selected>14pt</option>
+                <option value="5">18pt</option>
+                <option value="6">24pt</option>
+                <option value="7">36pt</option>
+            </select>
+        </div>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Text Formatting -->
+        <div class="toolbar-group">
+            <button class="toolbar-btn" onclick="execCommand('bold')" title="Negrita (Ctrl+B)">
+                <i class="fas fa-bold"></i>
+            </button>
+            <button class="toolbar-btn" onclick="execCommand('italic')" title="Cursiva (Ctrl+I)">
+                <i class="fas fa-italic"></i>
+            </button>
+            <button class="toolbar-btn" onclick="execCommand('underline')" title="Subrayado (Ctrl+U)">
+                <i class="fas fa-underline"></i>
+            </button>
+            <button class="toolbar-btn" onclick="execCommand('strikeThrough')" title="Tachado">
+                <i class="fas fa-strikethrough"></i>
+            </button>
+        </div>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Colors -->
+        <div class="toolbar-group">
+            <input type="color" class="color-picker" id="text-color" value="#000000"
+                onchange="execCommand('foreColor', this.value)" title="Color de texto">
+            <input type="color" class="color-picker" id="bg-color" value="#ffff00"
+                onchange="execCommand('hiliteColor', this.value)" title="Color de fondo">
+        </div>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Alignment -->
+        <div class="toolbar-group">
+            <button class="toolbar-btn" onclick="execCommand('justifyLeft')" title="Alinear izquierda">
+                <i class="fas fa-align-left"></i>
+            </button>
+            <button class="toolbar-btn" onclick="execCommand('justifyCenter')" title="Centrar">
+                <i class="fas fa-align-center"></i>
+            </button>
+            <button class="toolbar-btn" onclick="execCommand('justifyRight')" title="Alinear derecha">
+                <i class="fas fa-align-right"></i>
+            </button>
+            <button class="toolbar-btn" onclick="execCommand('justifyFull')" title="Justificar">
+                <i class="fas fa-align-justify"></i>
+            </button>
+        </div>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Lists -->
+        <div class="toolbar-group">
+            <button class="toolbar-btn" onclick="execCommand('insertUnorderedList')" title="Lista con viñetas">
+                <i class="fas fa-list-ul"></i>
+            </button>
+            <button class="toolbar-btn" onclick="execCommand('insertOrderedList')" title="Lista numerada">
+                <i class="fas fa-list-ol"></i>
+            </button>
+        </div>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- More Actions -->
+        <div class="toolbar-group">
+            <button class="toolbar-btn" onclick="execCommand('createLink')" title="Insertar enlace">
+                <i class="fas fa-link"></i>
+            </button>
+            <button class="toolbar-btn" onclick="execCommand('unlink')" title="Quitar enlace">
+                <i class="fas fa-unlink"></i>
+            </button>
+            <button class="toolbar-btn" onclick="insertImage()" title="Insertar imagen">
+                <i class="fas fa-image"></i>
+            </button>
+        </div>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Undo/Redo -->
+        <div class="toolbar-group">
+            <button class="toolbar-btn" onclick="execCommand('undo')" title="Deshacer (Ctrl+Z)">
+                <i class="fas fa-undo"></i>
+            </button>
+            <button class="toolbar-btn" onclick="execCommand('redo')" title="Rehacer (Ctrl+Y)">
+                <i class="fas fa-redo"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Editor -->
+    <div class="editor-container">
+        <div class="editor-content" id="editor" contenteditable="true" spellcheck="true">
+            <p>Empieza a escribir...</p>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Compartir documento</h3>
+                <button class="close-modal" onclick="closeShareModal()">&times;</button>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin-bottom: 10px;">Enlaces de acceso</h4>
+                <div id="links-list"></div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button onclick="createShareLink('view')" style="flex: 1; background: #e0e7ff; color: #4f46e5;">
+                    <i class="fas fa-eye"></i> Crear enlace (Solo ver)
+                </button>
+                <button onclick="createShareLink('edit')" style="flex: 1; background: #dcfce7; color: #16a34a;">
+                    <i class="fas fa-pen"></i> Crear enlace (Editar)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for images -->
+    <input type="file" id="image-file-input" accept="image/*" style="display: none;">
+
+    <!-- Upload Progress Modal -->
+    <div id="upload-progress-modal" class="upload-progress-modal">
+        <i class="fas fa-circle-notch fa-spin spinner"></i>
+        <p style="margin-top: 15px; font-weight: 600; color: var(--text-dim);">Subiendo imagen...</p>
+    </div>
+
+    <script type="module" src="js/doc.js"></script>
+</body>
+
+</html>

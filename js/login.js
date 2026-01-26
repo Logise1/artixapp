@@ -1,5 +1,5 @@
 import { auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, setDoc, doc, getDoc } from "./firebase-config.js";
-import { studentWhitelist } from "./student_whitelist.js";
+import { studentWhitelist, teacherWhitelist } from "./student_whitelist.js";
 
 const form = document.getElementById('auth-form');
 const emailInput = document.getElementById('email');
@@ -66,9 +66,17 @@ form.addEventListener('submit', async (e) => {
 
         // AUTO-REGISTRATION LOGIC
         // If user not found (or invalid credential which masks it), check whitelist
-        const studentInfo = studentWhitelist.find(s => s.email.toLowerCase() === email);
+        let userInfo = studentWhitelist.find(s => s.email.toLowerCase() === email);
+        let role = 'student';
 
-        if (studentInfo) {
+        if (!userInfo) {
+            userInfo = teacherWhitelist.find(t => t.email.toLowerCase() === email);
+            if (userInfo) {
+                role = 'teacher';
+            }
+        }
+
+        if (userInfo) {
             try {
                 // Attempt to create the user
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -76,13 +84,13 @@ form.addEventListener('submit', async (e) => {
                 // Create user profile in Firestore
                 await setDoc(doc(db, "users", userCredential.user.uid), {
                     email: email,
-                    displayName: studentInfo.name,
-                    role: 'student',
+                    displayName: userInfo.name,
+                    role: role,
                     createdAt: new Date(),
                     photoURL: null
                 });
 
-                showToast(`Bienvenido ${studentInfo.name}. Cuenta creada.`, 'success');
+                showToast(`Bienvenido ${userInfo.name}. Cuenta creada.`, 'success');
                 // Redirect will happen via onAuthStateChanged automatically
                 return;
 

@@ -951,3 +951,110 @@ label {
 .toast-notification.success .toast-icon {
     color: #10b981;
 }
+
+/* ========================================
+   FILE MANAGER STYLES
+   ======================================== */
+
+.file-item, .folder-item {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    user-select: none;
+}
+
+.file-item:hover, .folder-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary);
+}
+
+.file-icon, .folder-icon {
+    font-size: 3rem;
+    margin-bottom: 10px;
+    transition: transform 0.2s;
+}
+
+.folder-icon {
+    color: #fbbf24;
+}
+
+.file-item:hover .file-icon,
+.folder-item:hover .folder-icon {
+    transform: scale(1.1);
+}
+
+.file-name, .folder-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-main);
+    word-break: break-word;
+    margin-bottom: 4px;
+}
+
+.file-meta {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+.file-item.protected::before,
+.folder-item.protected::before {
+    content: '\f023';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 0.8rem;
+    color: #f59e0b;
+}
+
+/* Context Menu */
+.context-menu-item {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.context-menu-item:hover {
+    background: var(--bg-hover);
+}
+
+.context-menu-item i {
+    width: 16px;
+    text-align: center;
+}
+
+/* File Icons by Type */
+.file-icon-pdf {
+    color: #ef4444;
+}
+
+.file-icon-doc {
+    color: #3b82f6;
+}
+
+.file-icon-img {
+    color: #10b981;
+}
+
+.file-icon-video {
+    color: #8b5cf6;
+}
+
+.file-icon-default {
+    color: #64748b;
+}
