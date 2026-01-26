@@ -1,27 +1,27 @@
-# SchoolConnect
-
-A Slack-like classroom application for Professors and Students.
-
-## How to Run
-
-Because this application uses JavaScript Modules for Firebase, **you must run it using a local web server**. It will not work if you just double-click `login.html`.
-
-### Option 1: VS Code Live Server
-1. Right-click `login.html` in VS Code.
-2. Select "Open with Live Server".
-
-### Option 2: Node via Terminal
-Run the following command in the terminal to start a simple server:
-
+# Artix
+ 
+Una aplicación de aula tipo Slack para Profesores y Estudiantes.
+ 
+## Cómo Ejecutar
+ 
+Debido a que esta aplicación utiliza Módulos JavaScript para Firebase, **debes ejecutarla usando un servidor web local**. No funcionará si simplemente haces doble clic en `login.html`.
+ 
+### Opción 1: VS Code Live Server
+1. Haz clic derecho en `login.html` en VS Code.
+2. Selecciona "Open with Live Server".
+ 
+### Opción 2: Node vía Terminal
+Ejecuta el siguiente comando en la terminal para iniciar un servidor simple:
+ 
 ```bash
 npx serve .
 ```
-
-Then open the URL shown (usually `http://localhost:3000`).
-
-## Features
-
-- **Authentication**: Sign up as a Student or Professor.
-- **Professors**: Create classes, add students by email, create channels (Chat or Task type), create assignments.
-- **Students**: View classes, chat in channels, submit assignments (links/files).
-- **Real-time**: Built on Firebase Firestore for live updates.
+ 
+Luego abre la URL mostrada (usualmente `http://localhost:3000`).
+ 
+## Características
+ 
+- **Autenticación**: Regístrate como Estudiante o Profesor.
+- **Profesores**: Crear clases, añadir estudiantes por correo, crear canales (tipo Chat o Tarea), crear asignaciones.
+- **Estudiantes**: Ver clases, chatear en canales, entregar asignaciones (enlaces/archivos).
+- **Tiempo Real**: Construido sobre Firebase Firestore para actualizaciones en vivo.

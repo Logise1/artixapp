@@ -87,7 +87,7 @@ function attachProfileUploadListener() {
 
         } catch (err) {
             console.error(err);
-            alert("Failed to update profile picture.");
+            alert("Error al actualizar la foto de perfil.");
         }
     };
 }
@@ -125,7 +125,7 @@ function setupUIForRole() {
 
 window.switchRole = async (newRole) => {
     if (!currentUser) return;
-    if (confirm(`Switch account type to ${newRole}? This will reload page.`)) {
+    if (confirm(`¿Cambiar tipo de cuenta a ${newRole}? Esto recargará la página.`)) {
         try {
             await updateDoc(doc(db, "users", currentUser.uid), {
                 role: newRole
@@ -142,7 +142,7 @@ window.switchRole = async (newRole) => {
 // ----------------------
 
 async function loadClasses() {
-    classesGrid.innerHTML = '<div class="loader">Loading...</div>';
+    classesGrid.innerHTML = '<div class="loader">Cargando...</div>';
 
     let q;
     if (currentRole === 'professor') {
@@ -157,12 +157,12 @@ async function loadClasses() {
             classesGrid.innerHTML = `
                 <div style="text-align:center; grid-column: 1/-1; padding: 40px; color: var(--text-dim);">
                     <i class="fas fa-school" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
-                    <p style="font-size:1.1rem; margin-bottom:10px;">No classes found.</p>
+                    <p style="font-size:1.1rem; margin-bottom:10px;">No se encontraron clases.</p>
                     ${currentRole === 'professor'
-                    ? '<p>Create your first class to get started!</p>'
-                    : `<p>Click "Join with Code" to enter a class.</p>
+                    ? '<p>¡Crea tu primera clase para empezar!</p>'
+                    : `<p>Haz clic en "Unirse con Código" para entrar a una clase.</p>
                            <p style="margin-top:20px; font-size:0.8rem;">
-                             Are you a Professor? <a href="#" onclick="switchRole('professor')" style="color:var(--primary)">Switch Role</a>
+                             ¿Eres Profesor? <a href="#" onclick="switchRole('professor')" style="color:var(--primary)">Cambiar Rol</a>
                            </p>`
                 }
                 </div>
@@ -175,7 +175,7 @@ async function loadClasses() {
         });
     }, (error) => {
         console.error("Error loading classes:", error);
-        classesGrid.innerHTML = `<p class="error">Error loading classes: ${error.message}</p>`;
+        classesGrid.innerHTML = `<p class="error">Error cargando clases: ${error.message}</p>`;
     });
 }
 
@@ -194,10 +194,10 @@ function renderClassCard(id, data) {
         <div class="class-body">
             <div class="class-info">
                 <i class="fas fa-users" style="margin-right: 6px;"></i>
-                ${data.studentEmails ? data.studentEmails.length : 0} Students
+                ${data.studentEmails ? data.studentEmails.length : 0} Estudiantes
             </div>
             <div style="font-size: 0.8rem; color: #64748b; margin-top: auto;">
-                Code: <strong>${data.code || 'N/A'}</strong>
+                Código: <strong>${data.code || 'N/A'}</strong>
             </div>
         </div>
     `;
@@ -235,7 +235,7 @@ createClassForm.addEventListener('submit', async (e) => {
         createClassModal.classList.remove('active');
         document.getElementById('new-class-name').value = '';
     } catch (err) {
-        alert("Error creating class: " + err.message);
+        alert("Error creando clase: " + err.message);
     }
 });
 
@@ -254,7 +254,7 @@ joinClassForm.addEventListener('submit', async (e) => {
         const limitSnapshot = await getDocs(q); // Should be unique
 
         if (limitSnapshot.empty) {
-            alert("Invalid Class Code");
+            alert("Código de Clase Inválido");
             return;
         }
 
@@ -262,7 +262,7 @@ joinClassForm.addEventListener('submit', async (e) => {
         const classData = classDoc.data();
 
         if (classData.studentEmails && classData.studentEmails.includes(currentUser.email)) {
-            alert("You are already in this class!");
+            alert("¡Ya estás en esta clase!");
             joinClassModal.classList.remove('active');
             return;
         }
@@ -271,12 +271,12 @@ joinClassForm.addEventListener('submit', async (e) => {
             studentEmails: arrayUnion(currentUser.email)
         });
 
-        alert("Joined class successfully!");
+        alert("¡Te has unido a la clase con éxito!");
         joinClassModal.classList.remove('active');
         document.getElementById('join-code-input').value = '';
     } catch (err) {
         console.error(err);
-        alert("Error joining class: " + err.message);
+        alert("Error al unirse a la clase: " + err.message);
     }
 });
 
@@ -327,7 +327,7 @@ function loadChannels(classId) {
         settingsDiv.className = `channel-item ${currentChannelType === 'settings' ? 'active' : ''}`;
         settingsDiv.innerHTML = `
             <span class="channel-icon"><i class="fas fa-cog"></i></span>
-            <span>Settings</span>
+            <span>Configuración</span>
         `;
         settingsDiv.addEventListener('click', () => openSettings());
         channelsContainer.appendChild(settingsDiv);
@@ -406,7 +406,7 @@ async function uploadToYeet(file) {
             body: formData
         });
 
-        if (!response.ok) throw new Error('Upload failed');
+        if (!response.ok) throw new Error('Error en la subida');
         const result = await response.json();
         return {
             url: `https://yyf.mubilop.com${result.fileUrl}`,
@@ -414,7 +414,7 @@ async function uploadToYeet(file) {
         };
     } catch (err) {
         console.error(err);
-        throw new Error("File upload failed. Please try again.");
+        throw new Error("Error al subir archivo. Inténtalo de nuevo.");
     }
 }
 
@@ -431,7 +431,7 @@ chatFileInput.addEventListener('change', async (e) => {
     if (file) {
         currentChatFile = file;
         chatPreview.style.display = 'block';
-        chatPreview.innerHTML = `<i class="fas fa-paperclip"></i> ${file.name} (Ready to send)`;
+        chatPreview.innerHTML = `<i class="fas fa-paperclip"></i> ${file.name} (Listo para enviar)`;
     }
 });
 
@@ -602,7 +602,7 @@ function loadTasks(channelId) {
     onSnapshot(q, (snapshot) => {
         tasksContainer.innerHTML = '';
         if (snapshot.empty) {
-            tasksContainer.innerHTML = '<div class="empty-state"><i class="fas fa-clipboard-check" style="font-size:2rem; opacity:0.3; margin-bottom:10px;"></i><br>No assignments yet.</div>';
+            tasksContainer.innerHTML = '<div class="empty-state"><i class="fas fa-clipboard-check" style="font-size:2rem; opacity:0.3; margin-bottom:10px;"></i><br>No hay asignaciones todavía.</div>';
         }
         snapshot.forEach((doc) => {
             renderTaskSummary(doc.id, doc.data());
@@ -621,7 +621,7 @@ function renderTaskSummary(id, data) {
             <span style="font-size:0.8rem; color:var(--text-dim);">${new Date(data.createdAt.toDate()).toLocaleDateString()}</span>
         </div>
         <p style="color:var(--text-main); margin-bottom:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${data.description}</p>
-        <button style="width:auto; padding:6px 12px; font-size:0.8rem; pointer-events:none; background:var(--bg-app); color:var(--text-dim); border:1px solid var(--border-color);">View Details</button>
+        <button style="width:auto; padding:6px 12px; font-size:0.8rem; pointer-events:none; background:var(--bg-app); color:var(--text-dim); border:1px solid var(--border-color);">Ver Detalles</button>
     `;
     tasksContainer.appendChild(div);
 }
@@ -644,14 +644,14 @@ window.openTaskDetails = async (id, data) => {
     attachmentsDiv.innerHTML = '';
 
     if (data.fileUrl) {
-        attachmentsDiv.innerHTML = `<h4 style="margin-bottom:10px;">Teacher Attachment</h4>
+        attachmentsDiv.innerHTML = `<h4 style="margin-bottom:10px;">Adjunto del Profesor</h4>
              <a href="${data.fileUrl}" target="_blank" class="file-attachment" style="display:inline-flex; align-items:center; gap:10px; background:white; padding:15px; border-radius:8px; text-decoration:none; color:inherit; border:1px solid var(--border-color); box-shadow:var(--shadow-soft);">
                 <div style="width:40px; height:40px; background:var(--bg-app); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--primary); font-size:1.4rem;">
                     <i class="fas fa-file-download"></i>
                 </div>
                 <div>
-                    <div style="font-weight:600;">${data.fileName || 'Attached File'}</div>
-                    <div style="font-size:0.8rem; color:var(--text-dim);">Download Resource</div>
+                    <div style="font-weight:600;">${data.fileName || 'Archivo Adjunto'}</div>
+                    <div style="font-size:0.8rem; color:var(--text-dim);">Descargar Recurso</div>
                 </div>
             </a>`;
     }
@@ -701,12 +701,12 @@ submissionForm.onsubmit = async (e) => {
     const currentFileInput = document.getElementById('submission-file');
     const file = currentFileInput.files[0];
 
-    if (!file) return alert("Select a file please.");
+    if (!file) return alert("Por favor selecciona un archivo.");
 
     // Visual feedback
     const btn = submissionForm.querySelector('button[type="submit"]');
     const originalText = btn.textContent;
-    btn.textContent = "Uploading...";
+    btn.textContent = "Subiendo...";
     btn.disabled = true;
 
     try {
@@ -722,13 +722,13 @@ submissionForm.onsubmit = async (e) => {
             createdAt: new Date()
         });
 
-        alert("Turned in!");
+        alert("¡Entregado!");
         // Update view to "Submitted" state
         submissionForm.innerHTML = `
             <div style="text-align:center; padding:30px; color:green;">
                 <i class="fas fa-check-circle" style="font-size:3rem; margin-bottom:15px;"></i>
-                <h3>Handed In!</h3>
-                <p>File: <a href="${uploaded.url}" target="_blank">${uploaded.filename}</a></p>
+                <h3>¡Entregado!</h3>
+                <p>Archivo: <a href="${uploaded.url}" target="_blank">${uploaded.filename}</a></p>
             </div>
         `;
 
@@ -747,9 +747,9 @@ async function checkMySubmission(taskId) {
         submissionForm.innerHTML = `
             <div style="text-align:center; padding:30px;">
                 <i class="fas fa-check-circle" style="font-size:3rem; color:green; margin-bottom:15px;"></i>
-                <h3>Handed In</h3>
-                <p>On ${new Date(sub.createdAt.toDate()).toLocaleDateString()}</p>
-                <p>File: <a href="${sub.link}" target="_blank">${sub.fileName || 'View'}</a></p>
+                <h3>Entregado</h3>
+                <p>El ${new Date(sub.createdAt.toDate()).toLocaleDateString()}</p>
+                <p>Archivo: <a href="${sub.link}" target="_blank">${sub.fileName || 'Ver'}</a></p>
             </div>
         `;
     } else {
@@ -787,11 +787,11 @@ async function loadAllSubmissions(taskId) {
     const q = query(collection(db, "submissions"), where("taskId", "==", taskId), orderBy("createdAt", "desc"));
     const snap = await getDocs(q);
 
-    document.getElementById('submission-count').textContent = `${snap.size} turned in`;
+    document.getElementById('submission-count').textContent = `${snap.size} entregadas`;
     container.innerHTML = '';
 
     if (snap.empty) {
-        container.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:var(--text-dim);">No submissions yet.</p>';
+        container.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:var(--text-dim);">No hay entregas todavía.</p>';
         return;
     }
 
@@ -804,7 +804,7 @@ async function loadAllSubmissions(taskId) {
              <div style="font-weight:600; margin-bottom:5px;">${d.studentEmail}</div>
              <div style="font-size:0.8rem; color:var(--text-dim); margin-bottom:10px;">${new Date(d.createdAt.toDate()).toLocaleString()}</div>
              <a href="${d.link}" target="_blank" style="display:block; padding:8px; background:var(--bg-app); border-radius:6px; text-decoration:none; color:var(--primary); text-align:center; font-size:0.9rem;">
-                 <i class="fas fa-download"></i> Download File
+                 <i class="fas fa-download"></i> Descargar Archivo
              </a>
          `;
         container.appendChild(div);
@@ -825,13 +825,13 @@ createTaskForm.addEventListener('submit', async (e) => {
     // Feedback
     const btn = createTaskForm.querySelector('button');
     const origText = btn.textContent;
-    btn.textContent = "Creating...";
+    btn.textContent = "Creando...";
     btn.disabled = true;
 
     try {
         let fileData = {};
         if (file) {
-            btn.textContent = "Uploading Attachment...";
+            btn.textContent = "Subiendo Adjunto...";
             const uploaded = await uploadToYeet(file);
             fileData = {
                 fileUrl: uploaded.url,
@@ -883,7 +883,7 @@ window.openSettings = async () => {
     const items = channelsContainer.querySelectorAll('.channel-item');
     if (items.length > 0) items[items.length - 1].classList.add('active');
 
-    document.getElementById('current-channel-name').textContent = "Settings";
+    document.getElementById('current-channel-name').textContent = "Configuración";
 
     messagesView.style.display = 'none';
     tasksView.style.display = 'none';
@@ -904,7 +904,7 @@ window.openSettings = async () => {
     const students = classData.studentEmails || [];
 
     if (students.length === 0) {
-        membersList.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-dim);">No students yet.</div>';
+        membersList.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-dim);">No hay estudiantes todavía.</div>';
     } else {
         let html = '';
         students.forEach(email => {
@@ -932,20 +932,20 @@ window.openSettings = async () => {
 };
 
 window.deleteThisClass = async () => {
-    if (confirm("Are you sure you want to DELETE this class? This cannot be undone.")) {
+    if (confirm("¿Estás seguro de que quieres ELIMINAR esta clase? Esto no se puede deshacer.")) {
         // ideally delete sub-collections too but for now just the class doc to hide it
         await deleteDoc(doc(db, "classes", currentClassId));
-        alert("Class deleted.");
+        alert("Clase eliminada.");
         document.getElementById('back-to-dash').click();
     }
 };
 
 window.leaveThisClass = async () => {
-    if (confirm("Leave this class?")) {
+    if (confirm("¿Salir de esta clase?")) {
         await updateDoc(doc(db, "classes", currentClassId), {
             studentEmails: arrayRemove(currentUser.email)
         });
-        alert("You left the class.");
+        alert("Saliste de la clase.");
         document.getElementById('back-to-dash').click();
     }
 };

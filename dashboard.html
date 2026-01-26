@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SchoolConnect | Dashboard</title>
+    <title>Artix | Panel Principal</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -16,7 +16,7 @@
     <nav
         style="background: #1e293b; border-bottom: 1px solid rgba(255,255,255,0.05); height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;">
         <div style="font-weight: 700; font-size: 1.2rem; color: #4f46e5; display:flex; align-items:center; gap:10px;">
-            <i class="fas fa-graduation-cap"></i> SchoolConnect
+            <i class="fas fa-graduation-cap"></i> Artix
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
             <div id="nav-user-profile" class="user-profile-section" style="display:flex; align-items:center; gap:10px;">
@@ -29,7 +29,8 @@
                 </div>
             </div>
             <button id="logout-btn"
-                style="width: auto; margin: 0; padding: 8px 16px; background: #f1f5f9; color: #0f172a; font-size: 0.9rem; border: 1px solid #e2e8f0;">Logout</button>
+                style="width: auto; margin: 0; padding: 8px 16px; background: #f1f5f9; color: #0f172a; font-size: 0.9rem; border: 1px solid #e2e8f0;">Cerrar
+                Sesión</button>
         </div>
     </nav>
 
@@ -38,10 +39,10 @@
         if (window.location.protocol === 'file:') {
             document.body.innerHTML = `
                 <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#0f172a; color:white; flex-direction:column; text-align:center;">
-                    <h1>⚠️ Security Restriction</h1>
-                    <p style="margin-top:20px;">This app uses JavaScript Modules which do not work when opening files directly.</p>
-                    <p style="margin-top:10px;">Please open this folder in VS Code and use <b>"Open with Live Server"</b>.</p>
-                    <p style="color:#94a3b8; font-size:0.9rem; margin-top:20px;">Or run <code>npx serve .</code> in terminal.</p>
+                    <h1>⚠️ Restricción de Seguridad</h1>
+                    <p style="margin-top:20px;">Esta app usa Módulos JavaScript que no funcionan al abrir archivos directamente.</p>
+                    <p style="margin-top:10px;">Por favor abre esta carpeta en VS Code y usa <b>"Open with Live Server"</b>.</p>
+                    <p style="color:#94a3b8; font-size:0.9rem; margin-top:20px;">O ejecuta <code>npx serve .</code> en la terminal.</p>
                 </div>
             `;
         }
@@ -53,15 +54,15 @@
                 <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">Mis Clases</h2>
                 <div style="display:flex; gap:10px;">
                     <button id="join-class-btn"
-                        style="width: auto; background: white; color: var(--primary); border: 1px solid var(--primary); display: none;">Join
-                        with Code</button>
+                        style="width: auto; background: white; color: var(--primary); border: 1px solid var(--primary); display: none;">Unirse
+                        con Código</button>
                     <button id="create-class-btn" style="width: auto; display: none;">+ Nueva Clase</button>
                 </div>
             </div>
 
             <div id="classes-grid" class="dashboard-grid">
                 <!-- Classes will be injected here -->
-                <div class="loader">Loading classes...</div>
+                <div class="loader">Cargando clases...</div>
             </div>
         </div>
 
@@ -74,8 +75,8 @@
                         style="background: transparent; color: #64748b; width: auto; padding: 0; margin-right: 10px; font-size: 1rem;"><i
                             class="fas fa-arrow-left"></i></button>
                     <span id="current-class-name"
-                        style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">Class
-                        Name</span>
+                        style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">Nombre
+                        Clase</span>
 
                 </div>
 
@@ -94,8 +95,8 @@
                 <!-- Code Display for Profs -->
                 <div id="class-code-display" class="prof-only"
                     style="padding: 15px; border-top: 1px solid #e2e8f0; text-align:center;">
-                    <small style="color:#64748b;">Class Code:</small><br>
-                    <div class="join-code-badge" id="display-join-code">CODE123</div>
+                    <small style="color:#64748b;">Código de Clase:</small><br>
+                    <div class="join-code-badge" id="display-join-code">CÓDIGO123</div>
                 </div>
             </div>
 
@@ -120,7 +121,7 @@
                                 <i class="fas fa-paperclip"></i>
                             </label>
                             <input type="file" id="chat-file-input" style="display:none;">
-                            <input type="text" id="message-input" style="flex: 1;" placeholder="Type a message..."
+                            <input type="text" id="message-input" style="flex: 1;" placeholder="Escribe un mensaje..."
                                 autocomplete="off">
                             <button type="submit"
                                 style="width: auto; margin: 0; padding: 8px 12px; background: transparent; color: var(--primary);"><i
@@ -128,7 +129,7 @@
                         </form>
                         <div id="chat-upload-preview"
                             style="display:none; padding: 10px; font-size: 0.85rem; color: var(--primary);">
-                            Uploading... <i class="fas fa-spinner fa-spin"></i>
+                            Subiendo... <i class="fas fa-spinner fa-spin"></i>
                         </div>
                     </div>
                 </div>
@@ -141,11 +142,11 @@
                         <button onclick="closeTaskDetails()"
                             style="width:auto; padding:0; margin:0; background:transparent; color:var(--text-dim); font-size:1.2rem;"><i
                                 class="fas fa-arrow-left"></i></button>
-                        <h2 id="detail-task-title" style="margin:0;">Task Title</h2>
+                        <h2 id="detail-task-title" style="margin:0;">Título de Tarea</h2>
                     </div>
                     <div style="padding: 32px; max-width: 800px; margin: 0 auto; width:100%;">
                         <div style="margin-bottom: 20px; color: var(--text-dim); font-size: 0.9rem;">
-                            Posted on <span id="detail-task-date"></span>
+                            Publicado el <span id="detail-task-date"></span>
                         </div>
                         <div id="detail-task-desc"
                             style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 30px; white-space: pre-wrap;">
@@ -159,25 +160,26 @@
                         <!-- Student Submission Area -->
                         <div id="detail-submission-area" class="student-only"
                             style="background: var(--bg-app); padding: 24px; border-radius: 12px; border: 1px solid var(--border-color);">
-                            <h3 style="margin-bottom: 15px;">Your Work</h3>
+                            <h3 style="margin-bottom: 15px;">Tu Trabajo</h3>
                             <form id="submission-form">
                                 <div class="file-upload-box" id="submission-drop-zone"
                                     style="border: 2px dashed var(--border-color); padding: 30px; text-align: center; border-radius: 12px; background: white; cursor: pointer; transition: all 0.2s;">
                                     <i class="fas fa-cloud-upload-alt"
                                         style="font-size: 2rem; color: var(--text-dim); margin-bottom: 10px;"></i>
-                                    <p style="color: var(--text-dim); margin-bottom: 0;">Click to upload or drag and
-                                        drop</p>
+                                    <p style="color: var(--text-dim); margin-bottom: 0;">Clic para subir o arrastrar y
+                                        soltar</p>
                                     <input type="file" id="submission-file" style="display:none;">
                                 </div>
                                 <div id="submission-file-preview"
                                     style="margin-top: 15px; display: none; align-items: center; gap: 10px; background: white; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                                     <i class="fas fa-file-alt" style="color: var(--primary);"></i>
-                                    <span id="submission-filename">file.txt</span>
+                                    <span id="submission-filename">archivo.txt</span>
                                     <button type="button" onclick="clearSubmissionFile()"
                                         style="margin-left: auto; width: auto; padding: 5px; color: #ef4444; background: transparent;"><i
                                             class="fas fa-times"></i></button>
                                 </div>
-                                <button type="submit" style="width: 100%; margin-top: 20px;">Mark as Done</button>
+                                <button type="submit" style="width: 100%; margin-top: 20px;">Marcar como
+                                    Completada</button>
                             </form>
                         </div>
 
@@ -185,10 +187,10 @@
                         <div id="detail-prof-view" class="prof-only">
                             <h3
                                 style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
-                                Student Submissions
+                                Entregas de Estudiantes
                                 <span id="submission-count"
                                     style="font-size: 0.9rem; font-weight: normal; background: var(--bg-app); padding: 4px 10px; border-radius: 12px;">0
-                                    turned in</span>
+                                    entregadas</span>
                             </h3>
                             <div id="detail-submissions-list"
                                 style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
@@ -203,8 +205,8 @@
                     style="flex: 1; display: none; flex-direction: column; overflow: hidden; padding: 24px; background:#f8fafc;">
                     <div
                         style="display: flex; justify-content: space-between; margin-bottom: 20px; align-items:center;">
-                        <h2 style="font-size:1.5rem; font-weight:700;">Assignments</h2>
-                        <button id="create-task-btn" class="prof-only" style="width: auto;">+ New Assignment</button>
+                        <h2 style="font-size:1.5rem; font-weight:700;">Asignaciones</h2>
+                        <button id="create-task-btn" class="prof-only" style="width: auto;">+ Nueva Asignación</button>
                     </div>
                     <div id="tasks-container" style="overflow-y: auto; flex: 1;">
                         <!-- Tasks -->
@@ -217,73 +219,76 @@
                     <div style="max-width: 800px; margin: 0 auto; width: 100%;">
                         <h2
                             style="font-size: 1.8rem; font-weight: 700; margin-bottom: 30px; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-                            Class Settings</h2>
+                            Configuración de Clase</h2>
 
                         <!-- General Info -->
                         <div class="settings-section" style="margin-bottom: 40px;">
-                            <h3 style="font-size: 1.1rem; margin-bottom: 15px; color: var(--primary);">General
-                                Information</h3>
+                            <h3 style="font-size: 1.1rem; margin-bottom: 15px; color: var(--primary);">Información
+                                General</h3>
                             <div class="info-card"
                                 style="background: var(--bg-app); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
                                 <div style="margin-bottom: 15px;">
                                     <label
-                                        style="font-size: 0.85rem; color: var(--text-dim); display: block; margin-bottom: 5px;">Class
-                                        Name</label>
+                                        style="font-size: 0.85rem; color: var(--text-dim); display: block; margin-bottom: 5px;">Nombre
+                                        de la Clase</label>
                                     <div id="settings-class-name" style="font-size: 1.1rem; font-weight: 600;">
-                                        Mathematics</div>
+                                        Matemáticas</div>
                                 </div>
 
                                 <div class="prof-only">
                                     <label
-                                        style="font-size: 0.85rem; color: var(--text-dim); display: block; margin-bottom: 5px;">Invite
-                                        Code</label>
+                                        style="font-size: 0.85rem; color: var(--text-dim); display: block; margin-bottom: 5px;">Código
+                                        de Invitación</label>
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         <div id="settings-class-code"
                                             style="font-family: monospace; font-size: 1.5rem; letter-spacing: 2px; background: white; padding: 8px 16px; border: 1px solid var(--border-color); border-radius: 8px;">
-                                            CODE12</div>
+                                            CÓDIGO12</div>
                                         <button
-                                            onclick="navigator.clipboard.writeText(document.getElementById('settings-class-code').textContent); alert('Copied!')"
+                                            onclick="navigator.clipboard.writeText(document.getElementById('settings-class-code').textContent); alert('¡Copiado!')"
                                             style="width: auto; margin: 0; padding: 8px 12px; font-size: 0.9rem; background: white; color: var(--text-main); border: 1px solid var(--border-color);"><i
                                                 class="fas fa-copy"></i></button>
                                     </div>
-                                    <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 8px;">Share this
-                                        code with students to let them join.</p>
+                                    <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 8px;">Comparte
+                                        este código con los estudiantes para que se unan.</p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Members List -->
                         <div class="settings-section" style="margin-bottom: 40px;">
-                            <h3 style="font-size: 1.1rem; margin-bottom: 15px; color: var(--primary);">Class Members
+                            <h3 style="font-size: 1.1rem; margin-bottom: 15px; color: var(--primary);">Miembros de la
+                                Clase
                             </h3>
                             <div id="settings-members-list"
                                 style="background: white; border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
                                 <!-- Members injected here -->
-                                <div style="padding: 20px; text-align: center; color: var(--text-dim);">Loading
-                                    members...</div>
+                                <div style="padding: 20px; text-align: center; color: var(--text-dim);">Cargando
+                                    miembros...</div>
                             </div>
                         </div>
 
                         <!-- Danger Zone -->
                         <div class="settings-section" style="margin-top: 60px;">
-                            <h3 style="font-size: 1.1rem; margin-bottom: 15px; color: #ef4444;">Danger Zone</h3>
+                            <h3 style="font-size: 1.1rem; margin-bottom: 15px; color: #ef4444;">Zona de Peligro</h3>
                             <div
                                 style="border: 1px solid #fee2e2; background: #fef2f2; border-radius: 12px; padding: 20px;">
                                 <div class="prof-only">
-                                    <h4 style="font-size: 1rem; color: #991b1b; margin-bottom: 5px;">Delete Class</h4>
-                                    <p style="font-size: 0.9rem; color: #b91c1c; margin-bottom: 15px;">Permanently
-                                        delete this class and all its data. This action cannot be undone.</p>
+                                    <h4 style="font-size: 1rem; color: #991b1b; margin-bottom: 5px;">Eliminar Clase</h4>
+                                    <p style="font-size: 0.9rem; color: #b91c1c; margin-bottom: 15px;">Eliminar
+                                        permanentemente esta clase y todos sus datos. Esta acción no se puede deshacer.
+                                    </p>
                                     <button onclick="deleteThisClass()"
-                                        style="width: auto; background: #ef4444; color: white; border: none; margin: 0;">Delete
-                                        Class</button>
+                                        style="width: auto; background: #ef4444; color: white; border: none; margin: 0;">Eliminar
+                                        Clase</button>
                                 </div>
                                 <div class="student-only">
-                                    <h4 style="font-size: 1rem; color: #991b1b; margin-bottom: 5px;">Leave Class</h4>
-                                    <p style="font-size: 0.9rem; color: #b91c1c; margin-bottom: 15px;">Remove yourself
-                                        from this class.</p>
+                                    <h4 style="font-size: 1rem; color: #991b1b; margin-bottom: 5px;">Salir de la Clase
+                                    </h4>
+                                    <p style="font-size: 0.9rem; color: #b91c1c; margin-bottom: 15px;">Eliminarte de
+                                        esta clase.</p>
                                     <button onclick="leaveThisClass()"
-                                        style="width: auto; background: #ef4444; color: white; border: none; margin: 0;">Leave
-                                        Class</button>
+                                        style="width: auto; background: #ef4444; color: white; border: none; margin: 0;">Salir
+                                        de la Clase</button>
                                 </div>
                             </div>
                         </div>
@@ -299,15 +304,15 @@
     <div id="create-class-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Create New Class</h3>
+                <h3>Crear Nueva Clase</h3>
                 <button class="close-modal">&times;</button>
             </div>
             <form id="create-class-form">
                 <div class="input-group">
-                    <label>Class Name</label>
-                    <input type="text" id="new-class-name" required placeholder="e.g. Mathematics 101">
+                    <label>Nombre de la Clase</label>
+                    <input type="text" id="new-class-name" required placeholder="ej. Matemáticas 101">
                 </div>
-                <button type="submit">Create Class</button>
+                <button type="submit">Crear Clase</button>
             </form>
         </div>
     </div>
@@ -316,16 +321,16 @@
     <div id="join-class-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Join a Class</h3>
+                <h3>Unirse a una Clase</h3>
                 <button class="close-modal">&times;</button>
             </div>
             <form id="join-class-form">
                 <div class="input-group">
-                    <label>Class Code</label>
-                    <input type="text" id="join-code-input" required placeholder="Enter 6-character code"
+                    <label>Código de Clase</label>
+                    <input type="text" id="join-code-input" required placeholder="Introduce el código de 6 caracteres"
                         style="text-transform:uppercase; letter-spacing: 2px; text-align:center; font-size: 1.2rem;">
                 </div>
-                <button type="submit">Join Class</button>
+                <button type="submit">Unirse a la Clase</button>
             </form>
         </div>
     </div>
@@ -334,22 +339,22 @@
     <div id="create-channel-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Create Channel</h3>
+                <h3>Crear Canal</h3>
                 <button class="close-modal">&times;</button>
             </div>
             <form id="create-channel-form">
                 <div class="input-group">
-                    <label>Channel Name</label>
-                    <input type="text" id="new-channel-name" required placeholder="e.g. homework-help">
+                    <label>Nombre del Canal</label>
+                    <input type="text" id="new-channel-name" required placeholder="ej. ayuda-tarea">
                 </div>
                 <div class="input-group">
-                    <label>Channel Type</label>
+                    <label>Tipo de Canal</label>
                     <select id="channel-type">
-                        <option value="chat">Text Chat</option>
-                        <option value="tasks">Assignments</option>
+                        <option value="chat">Chat de Texto</option>
+                        <option value="tasks">Asignaciones</option>
                     </select>
                 </div>
-                <button type="submit">Create Channel</button>
+                <button type="submit">Crear Canal</button>
             </form>
         </div>
     </div>
@@ -358,15 +363,15 @@
     <div id="add-student-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Add Student to Class</h3>
+                <h3>Añadir Estudiante a la Clase</h3>
                 <button class="close-modal">&times;</button>
             </div>
             <form id="add-student-form">
                 <div class="input-group">
-                    <label>Student Email</label>
-                    <input type="email" id="student-email-input" required placeholder="student@email.com">
+                    <label>Correo del Estudiante</label>
+                    <input type="email" id="student-email-input" required placeholder="estudiante@email.com">
                 </div>
-                <button type="submit">Add Student</button>
+                <button type="submit">Añadir Estudiante</button>
             </form>
         </div>
     </div>
@@ -375,23 +380,23 @@
     <div id="create-task-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>New Assignment</h3>
+                <h3>Nueva Asignación</h3>
                 <button class="close-modal">&times;</button>
             </div>
             <form id="create-task-form">
                 <div class="input-group">
-                    <label>Title</label>
+                    <label>Título</label>
                     <input type="text" id="task-title" required>
                 </div>
                 <div class="input-group">
-                    <label>Description</label>
+                    <label>Descripción</label>
                     <input type="text" id="task-desc" required>
                 </div>
                 <div class="input-group">
-                    <label>Attachment (Optional)</label>
+                    <label>Adjunto (Opcional)</label>
                     <input type="file" id="task-attachment">
                 </div>
-                <button type="submit">Assign</button>
+                <button type="submit">Asignar</button>
             </form>
         </div>
     </div>
@@ -400,7 +405,7 @@
     <div id="submissions-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Task Submissions</h3>
+                <h3>Entregas de Tarea</h3>
                 <button class="close-modal">&times;</button>
             </div>
             <div id="submissions-list-container" class="submission-list">

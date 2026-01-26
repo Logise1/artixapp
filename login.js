@@ -22,17 +22,17 @@ toggleBtn.addEventListener('click', (e) => {
     isLogin = !isLogin;
 
     if (isLogin) {
-        document.querySelector('.subtitle').textContent = "Enter your credentials to access your classroom.";
-        submitBtn.textContent = "Descubrir Clases";
-        toggleBtn.textContent = "Create one";
+        document.querySelector('.subtitle').textContent = "Introduce tus credenciales para acceder.";
+        submitBtn.textContent = "Entrar";
+        toggleBtn.textContent = "Crea una";
         document.querySelector('.role-selector').style.display = 'none';
-        document.querySelector('h1').textContent = "Welcome Back";
+        document.querySelector('h1').textContent = "Bienvenido de nuevo";
     } else {
-        document.querySelector('.subtitle').textContent = "Join your school community today.";
-        submitBtn.textContent = "Create Account";
-        toggleBtn.textContent = "Sign in instead";
+        document.querySelector('.subtitle').textContent = "Únete a tu comunidad escolar hoy.";
+        submitBtn.textContent = "Crear Cuenta";
+        toggleBtn.textContent = "Iniciar sesión en su lugar";
         document.querySelector('.role-selector').style.display = 'flex';
-        document.querySelector('h1').textContent = "Get Started";
+        document.querySelector('h1').textContent = "Empezar";
     }
     errorMsg.textContent = '';
 });
@@ -43,7 +43,7 @@ form.addEventListener('submit', async (e) => {
     const password = passwordInput.value;
     const isProfessor = isProfessorInput.checked;
 
-    errorMsg.textContent = 'Loading...';
+    errorMsg.textContent = 'Cargando...';
     submitBtn.disabled = true;
 
     try {
