@@ -4,7 +4,26 @@ let currentUser = null;
 let currentRole = null;
 let currentClassId = null;
 let currentChannelId = null;
+
 let currentChannelType = 'chat';
+let activeListeners = {};
+
+function unsubscribeFrom(key) {
+    if (activeListeners[key]) {
+        activeListeners[key]();
+        delete activeListeners[key];
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return text;
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
 // UI Elements
 const dashboardView = document.getElementById('dashboard-view');
@@ -173,6 +192,7 @@ window.switchMainView = (viewName) => {
         }
     } else {
         // Chats
+        unsubscribeFrom('classes'); // Optional if we want to stop listening to class list updates while in chat view
         dashboardView.style.display = 'none';
         classView.style.display = 'none';
         document.getElementById('direct-chat-view').style.display = 'flex';
@@ -194,7 +214,8 @@ async function loadClasses() {
         q = query(collection(db, "classes"), where("studentEmails", "array-contains", currentUser.email));
     }
 
-    onSnapshot(q, (snapshot) => {
+    unsubscribeFrom('classes');
+    activeListeners['classes'] = onSnapshot(q, (snapshot) => {
         classesGrid.innerHTML = '';
         if (snapshot.empty) {
             classesGrid.innerHTML = `
@@ -229,7 +250,7 @@ function renderClassCard(id, data) {
 
     card.innerHTML = `
         <div class="class-header" style="background: ${gradient}">
-            <div class="class-title">${data.name}</div>
+            <div class="class-title">${escapeHtml(data.name)}</div>
         </div>
         <div class="class-body">
             <div class="class-info">
@@ -384,7 +405,8 @@ function loadChannels(classId) {
         setupDragAndDrop(channelsContainer);
     }
 
-    onSnapshot(q, (snapshot) => {
+    unsubscribeFrom('channels');
+    activeListeners['channels'] = onSnapshot(q, (snapshot) => {
         channelsContainer.innerHTML = '';
         const channels = [];
         snapshot.forEach((doc) => {
@@ -460,7 +482,7 @@ function renderChannelItem(id, data) {
 
     div.innerHTML = `
         <span class="channel-icon"><i class="fas ${data.type === 'tasks' ? 'fa-clipboard-list' : data.type === 'files' ? 'fa-folder' : 'fa-hashtag'}"></i></span>
-        <span>${data.name}</span>
+        <span>${escapeHtml(data.name)}</span>
         ${settingsIcon}
     `;
     div.addEventListener('click', () => selectChannel(id, data));
@@ -576,6 +598,11 @@ function selectChannel(id, data) {
     currentChannelId = id;
     currentChannelType = data.type;
     document.getElementById('current-channel-name').textContent = data.name;
+
+    // Unsubscribe from previous channel views
+    unsubscribeFrom('messages');
+    unsubscribeFrom('tasks');
+    unsubscribeFrom('files');
 
     document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
     // Re-rendering happens on snapshot, this is visual feedback for instant click
@@ -789,7 +816,8 @@ function loadMessages(channelId, containerOverride = null) {
 
     const q = query(collection(db, "messages"), where("channelId", "==", channelId), orderBy("createdAt", "asc"));
 
-    onSnapshot(q, (snapshot) => {
+    unsubscribeFrom('messages');
+    activeListeners['messages'] = onSnapshot(q, (snapshot) => {
         targetContainer.innerHTML = '';
         snapshot.forEach((doc) => {
             // Pass ID by merging it
@@ -818,7 +846,7 @@ function renderMessage(data, container = activeMessageContainer) {
     if (data.userId) refreshUserAvatars(data.userId);
 
     // Determine Content
-    let content = `<p>${data.text}</p>`;
+    let content = `<p>${escapeHtml(data.text)}</p>`;
 
     if (data.type === 'file') {
         const isImg = data.contentType && data.contentType.startsWith('image');
@@ -889,7 +917,7 @@ function renderMessage(data, container = activeMessageContainer) {
     if (data.replyTo) {
         replyHtml = `
             <div class="quoted-message">
-                <strong>${data.replyTo.userName}</strong>: ${data.replyTo.text}
+                <strong>${data.replyTo.userName}</strong>: ${escapeHtml(data.replyTo.text)}
             </div>
         `;
     }
@@ -906,7 +934,7 @@ function renderMessage(data, container = activeMessageContainer) {
         ${avatarHtml}
         <div class="msg-content" style="flex:1;">
             <h4>
-                ${data.userName} 
+                ${escapeHtml(data.userName)} 
                 <span style="font-size:0.75rem; color:var(--text-dim); font-weight:400; margin-left:8px;">
                     ${new Date(data.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
@@ -914,7 +942,7 @@ function renderMessage(data, container = activeMessageContainer) {
             ${replyHtml}
             ${content}
             <div class="message-actions" style="display:flex; gap:10px;">
-                <button class="reply-btn" onclick="startReply('${data.id}', '${data.userName}', '${data.text ? data.text.substr(0, 40).replace(/'/g, "\\'") + '...' : 'Archivo'}')">
+                <button class="reply-btn" onclick="startReply('${data.id}', '${data.userName}', '${data.text ? escapeHtml(data.text.substr(0, 40)).replace(/'/g, "\\'") + '...' : 'Archivo'}')">
                     <i class="fas fa-reply"></i> Responder
                 </button>
                 ${deleteBtn}
@@ -1054,7 +1082,8 @@ let currentTaskId = null;
 function loadTasks(channelId) {
     const q = query(collection(db, "tasks"), where("channelId", "==", channelId), orderBy("createdAt", "desc"));
 
-    onSnapshot(q, (snapshot) => {
+    unsubscribeFrom('tasks');
+    activeListeners['tasks'] = onSnapshot(q, (snapshot) => {
         tasksContainer.innerHTML = '';
         if (snapshot.empty) {
             tasksContainer.innerHTML = '<div class="empty-state"><i class="fas fa-clipboard-check" style="font-size:2rem; opacity:0.3; margin-bottom:10px;"></i><br>No hay asignaciones todavía.</div>';
@@ -1072,10 +1101,10 @@ function renderTaskSummary(id, data) {
 
     div.innerHTML = `
         <div class="task-header">
-            <h4 style="font-size:1.1rem; font-weight:700;">${data.title}</h4>
+            <h4 style="font-size:1.1rem; font-weight:700;">${escapeHtml(data.title)}</h4>
             <span style="font-size:0.8rem; color:var(--text-dim);">${new Date(data.createdAt.toDate()).toLocaleDateString()}</span>
         </div>
-        <p style="color:var(--text-main); margin-bottom:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${data.description}</p>
+        <p style="color:var(--text-main); margin-bottom:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(data.description)}</p>
         <button style="width:auto; padding:6px 12px; font-size:0.8rem; pointer-events:none; background:var(--bg-app); color:var(--text-dim); border:1px solid var(--border-color);">Ver Detalles</button>
     `;
     tasksContainer.appendChild(div);
@@ -1152,46 +1181,74 @@ window.clearSubmissionFile = () => {
 
 submissionForm.onsubmit = async (e) => {
     e.preventDefault();
-    // Get the current input from DOM as the innerHTML is replaced dynamically
     const currentFileInput = document.getElementById('submission-file');
-    const file = currentFileInput.files[0];
+    const driveUrlInput = document.getElementById('submission-drive-url');
 
-    if (!file) return alert("Por favor selecciona un archivo.");
+    const file = currentFileInput ? currentFileInput.files[0] : null;
+    const driveUrl = driveUrlInput ? driveUrlInput.value : null;
+
+    if (!file && !driveUrl) return alert("Por favor selecciona un archivo o elige de tu Drive.");
 
     // Visual feedback
     const btn = submissionForm.querySelector('button[type="submit"]');
     const originalText = btn.textContent;
-    btn.textContent = "Subiendo...";
+    btn.textContent = "Entregando...";
     btn.disabled = true;
 
     try {
-        const uploaded = await uploadToYeet(file);
-
-        await addDoc(collection(db, "submissions"), {
+        let submissionData = {
             taskId: currentTaskId,
             studentId: currentUser.uid,
             studentEmail: currentUser.email,
-            link: uploaded.url,
-            fileName: uploaded.filename,
-            type: 'file',
             createdAt: new Date()
+        };
+
+        if (file) {
+            btn.textContent = "Subiendo archivo...";
+            const uploaded = await uploadToYeet(file);
+            submissionData.link = uploaded.url;
+            submissionData.fileName = uploaded.filename;
+            submissionData.type = 'file';
+        } else if (driveUrl) {
+            submissionData.link = driveUrl;
+            submissionData.fileName = document.getElementById('submission-filename').textContent;
+            submissionData.type = 'drive';
+        }
+
+        await addDoc(collection(db, "submissions"), {
+            ...submissionData
         });
 
-        alert("¡Entregado!");
-        // Update view to "Submitted" state
-        submissionForm.innerHTML = `
-            <div style="text-align:center; padding:30px; color:green;">
-                <i class="fas fa-check-circle" style="font-size:3rem; margin-bottom:15px;"></i>
-                <h3>¡Entregado!</h3>
-                <p>Archivo: <a href="${uploaded.url}" target="_blank">${uploaded.filename}</a></p>
-            </div>
-        `;
-
+        alert("¡Entregado exitosamente!");
+        checkMySubmission(currentTaskId); // Refresh view
     } catch (err) {
-        alert(err.message);
-        btn.textContent = originalText;
-        btn.disabled = false;
+        console.error("Error submitting", err);
+        alert("Error al entregar: " + err.message);
+    } finally {
+        if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
     }
+};
+
+window.deleteSubmission = async (subId) => {
+    if (confirm("¿Seguro que quieres anular la entrega? Podrás volver a entregar después.")) {
+        await deleteDoc(doc(db, "submissions", subId));
+        checkMySubmission(currentTaskId);
+    }
+};
+
+window.clearSubmissionFile = () => {
+    const fileInput = document.getElementById('submission-file');
+    const driveUrl = document.getElementById('submission-drive-url');
+    const preview = document.getElementById('submission-file-preview');
+    const dropZone = document.getElementById('submission-drop-zone');
+
+    if (fileInput) fileInput.value = '';
+    if (driveUrl) driveUrl.value = '';
+    if (preview) preview.style.display = 'none';
+    if (dropZone) dropZone.style.display = 'block';
 };
 
 async function checkMySubmission(taskId) {
@@ -1205,6 +1262,7 @@ async function checkMySubmission(taskId) {
                 <h3>Entregado</h3>
                 <p>El ${new Date(sub.createdAt.toDate()).toLocaleDateString()}</p>
                 <p>Archivo: <a href="${sub.link}" target="_blank">${sub.fileName || 'Ver'}</a></p>
+                <button type="button" onclick="deleteSubmission('${snap.docs[0].id}')" style="background:#fee2e2; color:#ef4444; width:auto; border:none; margin-top:10px;">Anular entrega</button>
             </div>
         `;
     } else {
@@ -1212,15 +1270,24 @@ async function checkMySubmission(taskId) {
         submissionForm.innerHTML = `
              <div class="file-upload-box" id="submission-drop-zone" onclick="document.getElementById('submission-file').click()" style="border: 2px dashed var(--border-color); padding: 30px; text-align: center; border-radius: 12px; background: white; cursor: pointer; transition: all 0.2s;">
                 <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: var(--text-dim); margin-bottom: 10px;"></i>
-                <p style="color: var(--text-dim); margin-bottom: 0;">Click to upload or drag and drop</p>
+                <p style="color: var(--text-dim); margin-bottom: 5px;">Click para subir o arrastrar</p>
                 <input type="file" id="submission-file" style="display:none;" onchange="handleSubFileSelect(this)">
             </div>
+            <div style="text-align:center; margin: 15px 0;">
+                <span style="background: var(--bg-app); padding: 0 10px; color: var(--text-dim); position: relative; z-index: 1;">o</span>
+                <div style="height:1px; background: var(--border-color); margin-top: -10px;"></div>
+            </div>
+            <button type="button" onclick="openDriveSelector()" style="width: 100%; border: 1px solid var(--primary); background: transparent; color: var(--primary); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fas fa-folder"></i> Elegir de mi Drive
+            </button>
+
             <div id="submission-file-preview" style="margin-top: 15px; display: none; align-items: center; gap: 10px; background: white; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                 <i class="fas fa-file-alt" style="color: var(--primary);"></i>
                 <span id="submission-filename">file.txt</span>
+                <input type="hidden" id="submission-drive-url">
                 <button type="button" onclick="clearSubmissionFile()" style="margin-left: auto; width: auto; padding: 5px; color: #ef4444; background: transparent;"><i class="fas fa-times"></i></button>
             </div>
-            <button type="submit" style="width: 100%; margin-top: 20px;">Mark as Done</button>
+            <button type="submit" style="width: 100%; margin-top: 20px;">Entregar tarea</button>
          `;
     }
 }
@@ -1507,17 +1574,20 @@ async function loadDirectChats() {
 
     const q = query(collection(db, "direct_chats"), where("participantEmails", "array-contains", currentUser.email));
 
-    onSnapshot(q, (snapshot) => {
-        chatList.innerHTML = '';
-        if (snapshot.empty) {
-            chatList.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-dim);">No tienes chats recientes.</div>';
-            return;
-        }
+    if (currentMainView === 'chats') {
+        unsubscribeFrom('direct_chats');
+        activeListeners['direct_chats'] = onSnapshot(q, (snapshot) => {
+            chatList.innerHTML = '';
+            if (snapshot.empty) {
+                chatList.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-dim);">No tienes chats recientes.</div>';
+                return;
+            }
 
-        snapshot.forEach(doc => {
-            renderChatListItem(doc.id, doc.data());
+            snapshot.forEach(doc => {
+                renderChatListItem(doc.id, doc.data());
+            });
         });
-    });
+    }
 }
 
 function renderChatListItem(id, data) {
@@ -1530,8 +1600,8 @@ function renderChatListItem(id, data) {
     const div = document.createElement('div');
     div.className = `chat-list-item ${currentDirectChatId === id ? 'active' : ''}`;
     div.innerHTML = `
-        <div class="avatar" style="width:36px; height:36px; font-size:1rem;">${displayName[0].toUpperCase()}</div>
-        <div style="font-weight:500;">${displayName}</div>
+        <div class="avatar" style="width:36px; height:36px; font-size:1rem;">${escapeHtml(displayName)[0].toUpperCase()}</div>
+        <div style="font-weight:500;">${escapeHtml(displayName)}</div>
     `;
     div.addEventListener('click', () => selectDirectChat(id, displayName));
     list.appendChild(div);
@@ -1728,7 +1798,8 @@ function loadFiles(channelId, folderId = null) {
         where("parentId", "==", folderId)
     );
 
-    onSnapshot(q, async (snapshot) => {
+    unsubscribeFrom('files');
+    activeListeners['files'] = onSnapshot(q, async (snapshot) => {
         filesGrid.innerHTML = '';
 
         if (snapshot.empty) {
@@ -1768,14 +1839,49 @@ function renderFileItem(item, canManageProtected) {
     const div = document.createElement('div');
     div.className = item.type === 'folder' ? 'folder-item' : 'file-item';
 
-    if (item.isProtected && !canManageProtected) {
+    const isProtected = item.isProtected || false;
+
+    if (isProtected) {
         div.classList.add('protected');
     }
 
+    // Drag and Drop support
+    // Students cannot drag protected items
+    if (!isProtected || canManageProtected) {
+        div.draggable = true;
+        div.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', item.id);
+            e.dataTransfer.effectAllowed = 'move';
+            div.classList.add('dragging');
+        });
+        div.addEventListener('dragend', () => {
+            div.classList.remove('dragging');
+        });
+    }
+
     if (item.type === 'folder') {
+        // Drop logic - Students cannot drop into protected folders
+        if (!isProtected || canManageProtected) {
+            div.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                div.classList.add('drag-over');
+            });
+            div.addEventListener('dragleave', () => {
+                div.classList.remove('drag-over');
+            });
+            div.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                div.classList.remove('drag-over');
+                const draggedId = e.dataTransfer.getData('text/plain');
+                if (draggedId && draggedId !== item.id) {
+                    await moveFileToFolder(draggedId, item.id);
+                }
+            });
+        }
+
         div.innerHTML = `
-            <i class="fas fa-folder folder-icon"></i>
-            <div class="folder-name">${item.name}</div>
+            <i class="fas fa-folder folder-icon ${isProtected ? 'protected-icon' : ''}"></i>
+            <div class="folder-name">${item.name} ${isProtected ? '<i class="fas fa-lock" style="font-size:0.7rem; opacity:0.5;"></i>' : ''}</div>
             <div class="file-meta">Modificado: ${formatDate(item.lastModified)}</div>
         `;
         div.onclick = () => navigateToFolder(item.id, item.name);
@@ -1795,8 +1901,8 @@ function renderFileItem(item, canManageProtected) {
     // Right-click context menu
     div.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        // Only allow context menu actions if not protected or user has permission
-        if (item.isProtected && !canManageProtected) {
+        // Students cannot see context menu for protected items
+        if (isProtected && !canManageProtected) {
             return;
         }
         showContextMenu(e.clientX, e.clientY, item);
@@ -2036,4 +2142,89 @@ async function deleteFile(itemId) {
         console.error('Error deleting:', error);
         alert('Error al eliminar: ' + error.message);
     }
+}
+
+// Drive Selector for Assignments
+let currentDriveSelectorFolderId = null;
+
+window.openDriveSelector = (parentId = null) => {
+    currentDriveSelectorFolderId = parentId;
+    document.getElementById('drive-selector-modal').classList.add('active');
+    loadDriveForSelector(parentId);
+};
+
+async function loadDriveForSelector(parentId) {
+    const list = document.getElementById('drive-selector-list');
+    const backBtn = document.getElementById('drive-selector-back');
+    list.innerHTML = '<div class="loader">Cargando Drive...</div>';
+
+    try {
+        const q = query(
+            collection(db, "user_files"),
+            where("userId", "==", currentUser.uid),
+            where("parentId", "==", parentId)
+        );
+
+        const snap = await getDocs(q);
+        list.innerHTML = '';
+
+        if (parentId) {
+            backBtn.style.display = 'block';
+            backBtn.onclick = async () => {
+                const parentDoc = await getDoc(doc(db, "user_files", parentId));
+                loadDriveForSelector(parentDoc.data().parentId || null);
+            };
+        } else {
+            backBtn.style.display = 'none';
+        }
+
+        if (snap.empty) {
+            list.innerHTML = '<p style="text-align:center; color:var(--text-dim); padding:20px;">Esta carpeta está vacía.</p>';
+            return;
+        }
+
+        snap.forEach(doc => {
+            const data = doc.data();
+            const id = doc.id;
+            const div = document.createElement('div');
+            div.style.cssText = 'display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border-color); cursor:pointer; transition:background 0.2s;';
+            div.onmouseover = () => div.style.background = 'var(--bg-app)';
+            div.onmouseout = () => div.style.background = 'transparent';
+
+            if (data.type === 'folder') {
+                div.innerHTML = `<i class="fas fa-folder" style="color:#fdba74; font-size:1.2rem;"></i> <span style="font-weight:500;">${data.name}</span>`;
+                div.onclick = () => loadDriveForSelector(id);
+            } else {
+                div.innerHTML = `<i class="fas fa-file-alt" style="color:var(--primary); font-size:1.2rem;"></i> <span>${data.name}</span>`;
+                div.onclick = () => handleDriveFileSelect(id, data);
+            }
+            list.appendChild(div);
+        });
+    } catch (err) {
+        console.error("Error loading drive selector", err);
+        list.innerHTML = '<p style="color:red; text-align:center;">Error al cargar el Drive.</p>';
+    }
+}
+
+function handleDriveFileSelect(id, data) {
+    const filenameLabel = document.getElementById('submission-filename');
+    const driveUrlInput = document.getElementById('submission-drive-url');
+    const preview = document.getElementById('submission-file-preview');
+    const dropZone = document.getElementById('submission-drop-zone');
+    const fileInput = document.getElementById('submission-file');
+
+    filenameLabel.textContent = data.name;
+    // For documents created in-app, use the doc.html link, otherwise just use the fileUrl if it exists
+    if (data.type === 'document') {
+        driveUrlInput.value = `doc.html?document=${id}`;
+    } else {
+        driveUrlInput.value = data.fileUrl;
+    }
+
+    if (fileInput) fileInput.value = ''; // Clear local file if any
+
+    preview.style.display = 'flex';
+    dropZone.style.display = 'none';
+
+    document.getElementById('drive-selector-modal').classList.remove('active');
 }

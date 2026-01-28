@@ -240,7 +240,40 @@ function renderFileItem(item) {
     const div = document.createElement('div');
     div.className = item.type === 'folder' ? 'folder-item' : 'file-item';
 
+    // Drag and Drop support
+    div.draggable = true;
+    div.dataset.id = item.id;
+    div.dataset.type = item.type;
+
+    div.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', item.id);
+        e.dataTransfer.effectAllowed = 'move';
+        div.classList.add('dragging');
+    });
+
+    div.addEventListener('dragend', () => {
+        div.classList.remove('dragging');
+    });
+
     if (item.type === 'folder') {
+        div.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            div.classList.add('drag-over');
+        });
+
+        div.addEventListener('dragleave', () => {
+            div.classList.remove('drag-over');
+        });
+
+        div.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            div.classList.remove('drag-over');
+            const draggedId = e.dataTransfer.getData('text/plain');
+            if (draggedId && draggedId !== item.id) {
+                await moveItem(draggedId, item.id);
+            }
+        });
+
         div.innerHTML = `
             <i class="fas fa-folder folder-icon"></i>
             <div class="folder-name">${item.name}</div>
@@ -271,6 +304,21 @@ function renderFileItem(item) {
     });
 
     filesGrid.appendChild(div);
+}
+
+async function moveItem(itemId, newParentId) {
+    try {
+        // Prevent moving a folder into itself or a child (simple check for same folder)
+        if (itemId === newParentId) return;
+
+        await updateDoc(doc(db, "user_files", itemId), {
+            parentId: newParentId,
+            lastModified: new Date()
+        });
+    } catch (error) {
+        console.error('Error moving:', error);
+        alert('Error al mover el archivo: ' + error.message);
+    }
 }
 
 function getFileIcon(fileName, contentType, type) {

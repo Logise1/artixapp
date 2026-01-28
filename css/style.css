@@ -97,6 +97,24 @@ nav {
     opacity: 0.8;
 }
 
+/* Drag and Drop Visuals */
+.draggable.dragging {
+    opacity: 0.5;
+    border: 2px dashed var(--primary);
+}
+
+.folder-item.drag-over,
+.file-item.drag-over {
+    background: #eef2ff !important;
+    border: 2px solid var(--primary) !important;
+    transform: scale(1.02);
+}
+
+.dragging {
+    opacity: 0.5;
+    cursor: move;
+}
+
 /* App Shell (Global Layout) */
 .app-shell {
     display: flex;
@@ -956,7 +974,8 @@ label {
    FILE MANAGER STYLES
    ======================================== */
 
-.file-item, .folder-item {
+.file-item,
+.folder-item {
     background: white;
     border: 1px solid var(--border-color);
     border-radius: 12px;
@@ -971,13 +990,15 @@ label {
     user-select: none;
 }
 
-.file-item:hover, .folder-item:hover {
+.file-item:hover,
+.folder-item:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border-color: var(--primary);
 }
 
-.file-icon, .folder-icon {
+.file-icon,
+.folder-icon {
     font-size: 3rem;
     margin-bottom: 10px;
     transition: transform 0.2s;
@@ -992,7 +1013,8 @@ label {
     transform: scale(1.1);
 }
 
-.file-name, .folder-name {
+.file-name,
+.folder-name {
     font-size: 0.9rem;
     font-weight: 500;
     color: var(--text-main);
