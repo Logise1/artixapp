@@ -1408,7 +1408,11 @@ window.openSettings = async () => {
     currentChannelId = null;
     currentChannelType = 'settings';
 
-    // Update visuals
+    // Unsubscribe from previous
+    unsubscribeFrom('messages');
+    unsubscribeFrom('tasks');
+    unsubscribeFrom('files');
+
     document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
     // Find the settings item to make it active (last child)
     const items = channelsContainer.querySelectorAll('.channel-item');
@@ -1418,6 +1422,8 @@ window.openSettings = async () => {
 
     messagesView.style.display = 'none';
     tasksView.style.display = 'none';
+    const filesView = document.getElementById('files-view');
+    if (filesView) filesView.style.display = 'none';
     settingsView.style.display = 'flex';
 
     // Load Settings Data
