@@ -1544,29 +1544,33 @@ async function performSearch(rawTerm) {
         ]);
 
         const processUserDoc = (doc) => {
-            if (doc.id !== currentUser.uid) {
-                const data = doc.data();
-                const emailLower = data.email.toLowerCase();
+            // Allow searching for yourself
+            const data = doc.data();
+            const emailLower = data.email.toLowerCase();
 
-                // Avoid duplicates if matched by both email and name
-                if (registeredEmails.has(emailLower)) return;
-                registeredEmails.add(emailLower);
+            // Avoid duplicates if matched by both email and name
+            if (registeredEmails.has(emailLower)) return;
+            registeredEmails.add(emailLower);
 
-                // Smart Photo Logic
-                let photoToUse = data.photoURL;
-                if (!photoToUse && whitelistMap.has(emailLower)) {
-                    photoToUse = whitelistMap.get(emailLower).photoURL;
-                }
-
-                results.push({
-                    type: 'user',
-                    id: doc.id,
-                    title: data.displayName || data.email,
-                    subtitle: data.email,
-                    photoURL: photoToUse,
-                    data: data
-                });
+            // Smart Photo Logic
+            let photoToUse = data.photoURL;
+            if (!photoToUse && whitelistMap.has(emailLower)) {
+                photoToUse = whitelistMap.get(emailLower).photoURL;
             }
+
+            let title = data.displayName || data.email;
+            if (doc.id === currentUser.uid) {
+                title += " (Tú)";
+            }
+
+            results.push({
+                type: 'user',
+                id: doc.id,
+                title: title,
+                subtitle: data.email,
+                photoURL: photoToUse,
+                data: data
+            });
         };
 
         snapU1.forEach(processUserDoc);
