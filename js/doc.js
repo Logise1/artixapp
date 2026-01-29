@@ -322,7 +322,8 @@ function showSaveStatus(status, customText = null) {
 }
 
 // Execute formatting commands
-window.execCommand = (command, value = null) => {
+// Execute formatting commands
+window.formatDoc = (command, value = null) => {
     if (isReadOnly) return;
 
     if (command === 'createLink') {
@@ -340,7 +341,9 @@ window.execCommand = (command, value = null) => {
         document.execCommand(command, false, value);
     }
 
-    document.getElementById('editor').focus();
+    // Ensure editor regains focus
+    const editor = document.getElementById('editor');
+    if (editor) editor.focus();
 };
 
 // Insert image from file picker
@@ -371,18 +374,22 @@ async function uploadAndInsertImage(file) {
     document.getElementById('upload-progress-modal').classList.add('active');
 
     try {
-        // Upload to YeetYourFiles
+        // Upload to GreenBase
         const formData = new FormData();
-        formData.append('file', file, file.name);
+        formData.append('file', file);
 
-        const response = await fetch('https://yyf.mubilop.com/api/upload', {
+        const response = await fetch('https://greenbase.arielcapdevila.com/upload', {
             method: 'POST',
             body: formData
         });
 
-        if (!response.ok) throw new Error('Error en la subida');
-        const result = await response.json();
-        const imageUrl = `https://yyf.mubilop.com${result.fileUrl}`;
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Error en la subida: ${response.status} - ${errText}`);
+        }
+
+        const data = await response.json();
+        const imageUrl = `https://greenbase.arielcapdevila.com/file/${data.id}`;
 
         // Insert image into editor
         const img = document.createElement('img');

@@ -47,6 +47,9 @@ const tasksContainer = document.getElementById('tasks-container');
 let currentMainView = 'classes'; // 'classes' or 'chats'
 let activeMessageContainer = messagesContainer; // Reference to currently active container
 
+let myBlockedUsers = [];
+let pinnedChats = [];
+
 // Auth State Helper: Update UI with Profile Data
 async function updateProfileUI(user) {
     document.getElementById('user-email').textContent = user.email;
@@ -58,6 +61,8 @@ async function updateProfileUI(user) {
         if (userDoc.exists()) {
             const data = userDoc.data();
             currentRole = data.role || 'student';
+            myBlockedUsers = data.blockedUsers || [];
+            pinnedChats = data.pinnedChats || [];
 
             // Render Avatar
             if (data.photoURL) {
@@ -78,6 +83,47 @@ async function updateProfileUI(user) {
         console.error(err);
     }
 }
+
+window.toggleBlockUser = async (targetUid) => {
+    if (!currentUser) return;
+
+    // Check if already blocked
+    const isBlocked = myBlockedUsers.includes(targetUid);
+
+    if (confirm(isBlocked ? "¿Desbloquear a este usuario?" : "¿Bloquear a este usuario? No verás sus mensajes.")) {
+        try {
+            if (isBlocked) {
+                await updateDoc(doc(db, "users", currentUser.uid), {
+                    blockedUsers: arrayRemove(targetUid)
+                });
+                myBlockedUsers = myBlockedUsers.filter(id => id !== targetUid);
+                alert("Usuario desbloqueado.");
+            } else {
+                await updateDoc(doc(db, "users", currentUser.uid), {
+                    blockedUsers: arrayUnion(targetUid)
+                });
+                myBlockedUsers.push(targetUid);
+                alert("Usuario bloqueado.");
+            }
+
+            // Refresh current view if needed
+            if (currentDirectChatId) {
+                const currentChatName = document.getElementById('direct-chat-header-name').textContent;
+                // We need the UID, which we might not have explicitly in the header var, but selectDirectChat has logic.
+                // We will reload the chat header logic.
+                // Or better, just reload the page or re-select.
+
+                // Hack: Re-click the active chat item
+                const activeItem = document.querySelector('.chat-list-item.active');
+                if (activeItem) activeItem.click();
+            }
+
+        } catch (err) {
+            console.error(err);
+            alert("Error al actualizar bloqueo: " + err.message);
+        }
+    }
+};
 
 function attachProfileUploadListener() {
     const avatarData = document.getElementById('current-user-avatar');
@@ -682,25 +728,32 @@ createChannelForm.addEventListener('submit', async (e) => {
 // ----------------------
 // FILE UPLOAD HELPER (YeetYourFiles)
 // ----------------------
+// ----------------------
+// FILE UPLOAD HELPER (GreenBase)
+// ----------------------
 async function uploadToYeet(file) {
     const formData = new FormData();
-    formData.append('file', file, file.name);
+    formData.append('file', file);
 
     try {
-        const response = await fetch('https://yyf.mubilop.com/api/upload', {
+        const response = await fetch('https://greenbase.arielcapdevila.com/upload', {
             method: 'POST',
             body: formData
         });
 
-        if (!response.ok) throw new Error('Error en la subida');
-        const result = await response.json();
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Error en la subida: ${response.status} - ${errText}`);
+        }
+
+        const data = await response.json();
         return {
-            url: `https://yyf.mubilop.com${result.fileUrl}`,
+            url: `https://greenbase.arielcapdevila.com/file/${data.id}`,
             filename: file.name
         };
     } catch (err) {
         console.error(err);
-        throw new Error("Error al subir archivo. Inténtalo de nuevo.");
+        throw new Error("Error al subir archivo: " + err.message);
     }
 }
 
@@ -763,11 +816,55 @@ const emailToUidCache = {};
 
 async function getUserProfile(uid) {
     if (userCache[uid]) return userCache[uid];
+
+    // Check if UID is actually an email (Unregistered User)
+    if (uid.includes('@')) {
+        try {
+            // Whitelist IDs are emails (check casing logic or query?) 
+            // The script saves them as doc IDs? No, the script used normalized keys or patch to studentwhitelist/email.
+            // Firestore IDs for the whitelist were set to the email in the script.
+            // Let's try direct get, or query if casing mismatch.
+            const snap = await getDoc(doc(db, "studentwhitelist", uid));
+            if (snap.exists()) {
+                const data = snap.data();
+                userCache[uid] = { ...data, photoURL: data.photoURL, displayName: data.name };
+                return userCache[uid];
+            } else {
+                // Try lowercase fallback just in case
+                const snapLower = await getDoc(doc(db, "studentwhitelist", uid.toLowerCase()));
+                if (snapLower.exists()) {
+                    const data = snapLower.data();
+                    userCache[uid] = { ...data, photoURL: data.photoURL, displayName: data.name };
+                    return userCache[uid];
+                }
+            }
+        } catch (e) { console.error(e); }
+        return null; // Not found
+    }
+
     try {
         const snap = await getDoc(doc(db, "users", uid));
         if (snap.exists()) {
-            userCache[uid] = snap.data();
-            return snap.data();
+            const data = snap.data();
+
+            // Fallback: If no photoURL, check whitelist using their email
+            if (!data.photoURL && data.email) {
+                try {
+                    const wSnap = await getDoc(doc(db, "studentwhitelist", data.email));
+                    if (wSnap.exists() && wSnap.data().photoURL) {
+                        data.photoURL = wSnap.data().photoURL;
+                    } else {
+                        // Try lowercase
+                        const wSnapL = await getDoc(doc(db, "studentwhitelist", data.email.toLowerCase()));
+                        if (wSnapL.exists() && wSnapL.data().photoURL) {
+                            data.photoURL = wSnapL.data().photoURL;
+                        }
+                    }
+                } catch (err) { console.error("Whitelist fallback error", err); }
+            }
+
+            userCache[uid] = data;
+            return data;
         }
     } catch (e) {
         console.error(e);
@@ -800,9 +897,39 @@ async function refreshUserAvatars(uid) {
     const photoURL = profile ? profile.photoURL : null;
 
     if (photoURL) {
-        document.querySelectorAll(`.user-avatar-${uid}`).forEach(el => {
-            el.innerHTML = `<img src="${photoURL}">`;
-        });
+        // Use attribute selector to avoid issues with @ and . in UIDs (emails)
+        // We match any element that has the specific class
+        // Since class list is space separated, [class*="..."] might be loose but [class~="..."] works for exact word match
+        // But `user-avatar-${uid}` is a single class string.
+        // Let's use CSS.escape if available or attribute selector.
+        // safest: 
+        const selector = `[class*="user-avatar-${uid.replace(/["\\]/g, '\\$&')}"]`;
+        // actually simple getElementsByClassName is fastest/safest?
+        // But we want specific ones. 
+        // Let's use attribute selector with exact substring if possible or just use escaped UID.
+
+        // Simpler: iterate all avatars? No too slow.
+        // Let's try CSS.escape pattern manually?
+        // Actually, if we use setAttribute('data-userid', uid), it is much cleaner.
+
+        // Let's stick to the class strategy but fix the selector
+        // .user-avatar-someone@example.com -> invalid selector directly.
+        // CSS.escape("user-avatar-" + uid) works in modern browsers.
+        try {
+            const escapedClass = CSS.escape(`user-avatar-${uid}`);
+            document.querySelectorAll(`.${escapedClass}`).forEach(el => {
+                el.innerHTML = `<img src="${photoURL}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+            });
+        } catch (e) {
+            // Fallback for older browsers or if CSS.escape missing (unlikely in modern web app)
+            // Try attribute selector
+            document.querySelectorAll(`[class*="user-avatar-${uid}"]`).forEach(el => {
+                // Double check strict match to avoid partials (e.g. user-avatar-rob vs user-avatar-robert)
+                if (el.classList.contains(`user-avatar-${uid}`)) {
+                    el.innerHTML = `<img src="${photoURL}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                }
+            });
+        }
     }
 }
 
@@ -829,6 +956,9 @@ function loadMessages(channelId, containerOverride = null) {
 
 function renderMessage(data, container = activeMessageContainer) {
     if (!container) return; // Safety check
+
+    // Filter Blocked Users
+    if (myBlockedUsers.includes(data.userId)) return;
 
     const div = document.createElement('div');
     div.className = 'message';
@@ -1012,7 +1142,7 @@ async function handleSendMessage(inputEl, fileInputEl, formPreviewEl, channelId,
         text: text,
         userId: currentUser.uid,
         userName: displayName,
-        userPhoto: userPhoto,
+        // userPhoto: userPhoto,  <-- REMOVED to ensure dynamic updates via profile fetch
         createdAt: new Date(),
         type: msgType,
         ...fileData
@@ -1027,6 +1157,24 @@ async function handleSendMessage(inputEl, fileInputEl, formPreviewEl, channelId,
     }
 
     await addDoc(collection(db, "messages"), msgData);
+
+    // Update Direct Chat metadata (unhide, lastUpdated)
+    if (msgData.type === 'text' || msgData.type === 'file') {
+        // We do this for both class channels and direct chats, but 'hiddenBy' only exists on direct_chats usually.
+        // It's safe to try updating if we know it corresponds to a direct chat doc structure, 
+        // but 'channelId' is the doc ID. Mixed collections?
+        // The app seems to separate logic by view, but handleSendMessage is shared.
+        // We should check if we are in direct chat mode.
+        if (currentDirectChatId && channelId === currentDirectChatId) {
+            try {
+                // Clear hiddenBy so it reappears for everyone, update time
+                await updateDoc(doc(db, "direct_chats", channelId), {
+                    hiddenBy: [],
+                    lastUpdated: new Date()
+                });
+            } catch (e) { console.log("Not a direct chat or update failed", e); }
+        }
+    }
 
     cancelReply();
     inputEl.value = '';
@@ -1293,13 +1441,264 @@ async function checkMySubmission(taskId) {
 }
 
 // Global handler for the dynamically re-inserted input
-window.handleSubFileSelect = (input) => {
-    if (input.files[0]) {
-        document.getElementById('submission-filename').textContent = input.files[0].name;
-        document.getElementById('submission-drop-zone').style.display = 'none';
-        document.getElementById('submission-file-preview').style.display = 'flex';
+// ----------------------
+// SEARCH BAR LOGIC
+// ----------------------
+
+const searchInput = document.getElementById('global-search-input');
+const searchDropdown = document.getElementById('search-results-dropdown');
+const clearSearchBtn = document.getElementById('clear-search-btn');
+let searchTimeout = null;
+
+searchInput.addEventListener('input', (e) => {
+    // Pass raw term to preserve case for Name matching, but Trim it.
+    const term = e.target.value.trim();
+
+    if (term.length > 0) {
+        clearSearchBtn.style.display = 'block';
+        if (searchTimeout) clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => performSearch(term), 300);
+    } else {
+        clearSearchBtn.style.display = 'none';
+        searchDropdown.style.display = 'none';
     }
-};
+});
+
+clearSearchBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    searchDropdown.style.display = 'none';
+    clearSearchBtn.style.display = 'none';
+    searchInput.focus();
+});
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#global-search-input') && !e.target.closest('#search-results-dropdown')) {
+        searchDropdown.style.display = 'none';
+    }
+});
+
+async function performSearch(rawTerm) {
+    searchDropdown.innerHTML = '<div class="loader" style="font-size:0.8rem; padding:10px;">Buscando...</div>';
+    searchDropdown.style.display = 'block';
+
+    const results = [];
+    const termLower = rawTerm.toLowerCase();
+    const termUpper = rawTerm.toUpperCase();
+
+    try {
+        const registeredEmails = new Set();
+        const whitelistMap = new Map(); // email -> photoURL
+
+        // 1. Fetch Whitelist - Two Queries: Email, Name
+
+        // A) Email (Lower)
+        const qWhitelistEmail = query(collection(db, "studentwhitelist"),
+            where("email", ">=", termLower),
+            where("email", "<=", termLower + '\uf8ff')
+        );
+
+        // B) Name (Upper - assuming whitelist names are UPPERCASE as per script)
+        const qWhitelistName = query(collection(db, "studentwhitelist"),
+            where("name", ">=", termUpper),
+            where("name", "<=", termUpper + '\uf8ff')
+        );
+
+        const [snapW1, snapW2] = await Promise.all([
+            getDocs(qWhitelistEmail),
+            getDocs(qWhitelistName)
+        ]);
+
+        // Merge Whitelist Results
+        const mergeWhitelist = (doc) => {
+            const data = doc.data();
+            if (data.email) {
+                whitelistMap.set(data.email.toLowerCase(), data);
+            }
+        };
+        snapW1.forEach(mergeWhitelist);
+        snapW2.forEach(mergeWhitelist);
+
+
+        // 2. Fetch Registered Users - Two Queries: Email, DisplayName
+
+        // A) Email (Lower)
+        const qUsersEmail = query(collection(db, "users"),
+            where("email", ">=", termLower),
+            where("email", "<=", termLower + '\uf8ff')
+        );
+
+        // B) DisplayName (Try Uppercase first as it is dominant for students)
+        // Note: If user typed "Ale", termUpper is "ALE". Matches "ALEJANDRO".
+        const qUsersName = query(collection(db, "users"),
+            where("displayName", ">=", termUpper),
+            where("displayName", "<=", termUpper + '\uf8ff')
+        );
+
+        // We could also try rawTerm if it's different?
+        // Let's stick to Upper for now as it solves the reported issue "Si pongo Ale...".
+
+        const [snapU1, snapU2] = await Promise.all([
+            getDocs(qUsersEmail),
+            getDocs(qUsersName)
+        ]);
+
+        const processUserDoc = (doc) => {
+            if (doc.id !== currentUser.uid) {
+                const data = doc.data();
+                const emailLower = data.email.toLowerCase();
+
+                // Avoid duplicates if matched by both email and name
+                if (registeredEmails.has(emailLower)) return;
+                registeredEmails.add(emailLower);
+
+                // Smart Photo Logic
+                let photoToUse = data.photoURL;
+                if (!photoToUse && whitelistMap.has(emailLower)) {
+                    photoToUse = whitelistMap.get(emailLower).photoURL;
+                }
+
+                results.push({
+                    type: 'user',
+                    id: doc.id,
+                    title: data.displayName || data.email,
+                    subtitle: data.email,
+                    photoURL: photoToUse,
+                    data: data
+                });
+            }
+        };
+
+        snapU1.forEach(processUserDoc);
+        snapU2.forEach(processUserDoc);
+
+
+        // 3. Add Whitelist users who are NOT registered
+        whitelistMap.forEach((data, emailLower) => {
+            if (emailLower !== currentUser.email.toLowerCase() && !registeredEmails.has(emailLower)) {
+                results.push({
+                    type: 'user',
+                    id: data.email,
+                    title: data.name || data.email,
+                    subtitle: data.email + ' (No registrado)',
+                    photoURL: data.photoURL,
+                    data: { ...data, isUnregistered: true }
+                });
+            }
+        });
+
+        // 4. Also simple class search (My Classes) - Local Filter (Small list usually)
+        // We fetch ALL my classes and filter locally. Safer/Correct for case-insensitive.
+        const myClassesQ = currentRole === 'professor'
+            ? query(collection(db, "classes"), where("professorId", "==", currentUser.uid))
+            : query(collection(db, "classes"), where("studentEmails", "array-contains", currentUser.email));
+
+        const classSnaps = await getDocs(myClassesQ);
+        classSnaps.forEach(doc => {
+            const data = doc.data();
+            if (data.name.toLowerCase().includes(termLower)) {
+                results.push({
+                    type: 'class',
+                    id: doc.id,
+                    title: data.name,
+                    subtitle: 'Clase',
+                    data: data
+                });
+            }
+        });
+
+    } catch (err) {
+        console.error("Search error", err);
+    }
+
+    renderSearchResults(results);
+}
+
+function renderSearchResults(results) {
+    searchDropdown.innerHTML = '';
+
+    if (results.length === 0) {
+        searchDropdown.innerHTML = '<div style="padding:15px; text-align:center; color:var(--text-dim);">No se encontraron resultados</div>';
+        return;
+    }
+
+    results.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'search-result-item'; // Add css later or inline
+        div.style.cssText = 'padding:10px 15px; border-bottom:1px solid var(--border-color); cursor:pointer; display:flex; align-items:center; gap:10px; transition:background 0.2s;';
+        div.onmouseover = () => div.style.background = 'var(--bg-app)';
+        div.onmouseout = () => div.style.background = 'white';
+
+        let icon = '';
+
+        if (item.type === 'user') {
+            if (item.photoURL) {
+                icon = `<div class="avatar" style="width:32px; height:32px;"><img src="${item.photoURL}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;"></div>`;
+            } else {
+                icon = `<div class="avatar" style="width:32px; height:32px; font-size:0.9rem;">${item.title[0].toUpperCase()}</div>`;
+            }
+        } else {
+            icon = `<div style="width:32px; height:32px; background:#e0e7ff; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--primary);"><i class="fas fa-chalkboard"></i></div>`;
+        }
+
+        div.innerHTML = `
+            ${icon}
+            <div>
+                <div style="font-weight:600; font-size:0.9rem;">${escapeHtml(item.title)}</div>
+                <div style="font-size:0.8rem; color:var(--text-dim);">${escapeHtml(item.subtitle)}</div>
+            </div>
+        `;
+
+        div.addEventListener('click', () => {
+            if (item.type === 'user') {
+                // Check if chat exists or create new
+                startChatWithUser(item.data.email, item.id, item.title);
+            } else {
+                enterClass(item.id, item.data);
+            }
+            searchDropdown.style.display = 'none';
+            searchInput.value = '';
+        });
+
+        searchDropdown.appendChild(div);
+    });
+}
+
+async function startChatWithUser(email, uid, displayName) {
+    // Reuse new chat logic
+    // Check if chat exists
+    try {
+        const q = query(collection(db, "direct_chats"),
+            where("participantEmails", "array-contains", currentUser.email)
+        );
+        const snaps = await getDocs(q);
+        let existingId = null;
+
+        snaps.forEach(d => {
+            if (d.data().participantEmails.includes(email)) existingId = d.id;
+        });
+
+        if (existingId) {
+            switchMainView('chats');
+            selectDirectChat(existingId, displayName);
+        } else {
+            // Create New
+            const newDoc = await addDoc(collection(db, "direct_chats"), {
+                participantEmails: [currentUser.email, email],
+                participants: [currentUser.uid, uid],
+                createdAt: new Date(),
+                lastUpdated: new Date()
+            });
+            switchMainView('chats');
+            // Allow time for listener to pick up
+            setTimeout(() => selectDirectChat(newDoc.id, displayName), 500);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error iniciando chat: " + e.message);
+    }
+}
+
 
 // Prof Submissions List
 async function loadAllSubmissions(taskId) {
@@ -1582,6 +1981,7 @@ async function loadDirectChats() {
 
     if (currentMainView === 'chats') {
         unsubscribeFrom('direct_chats');
+        unsubscribeFrom('direct_chats');
         activeListeners['direct_chats'] = onSnapshot(q, (snapshot) => {
             chatList.innerHTML = '';
             if (snapshot.empty) {
@@ -1589,41 +1989,250 @@ async function loadDirectChats() {
                 return;
             }
 
+            let chats = [];
             snapshot.forEach(doc => {
-                renderChatListItem(doc.id, doc.data());
+                chats.push({ id: doc.id, ...doc.data() });
             });
+
+            // Filter Hidden
+            chats = chats.filter(c => !c.hiddenBy || !c.hiddenBy.includes(currentUser.uid));
+
+            // Sort: Pinned first, then Last Updated (Desc)
+            chats.sort((a, b) => {
+                const aPinned = pinnedChats.includes(a.id);
+                const bPinned = pinnedChats.includes(b.id);
+                if (aPinned && !bPinned) return -1;
+                if (!aPinned && bPinned) return 1;
+                // fallback to creation or lastUpdated
+                const timeA = a.lastUpdated?.seconds || a.createdAt?.seconds || 0;
+                const timeB = b.lastUpdated?.seconds || b.createdAt?.seconds || 0;
+                return timeB - timeA;
+            });
+
+            chats.forEach(c => renderChatListItem(c.id, c));
         });
     }
 }
 
-function renderChatListItem(id, data) {
+async function renderChatListItem(id, data) {
     const list = document.getElementById('direct-chat-list');
-    const otherEmail = data.participantEmails.find(e => e !== currentUser.email);
+    // If item already exists, remove it to re-order/update? 
+    // Actually snapshot listeners handle additions/modifications.
+    // Ideally we find existing element.
+    let div = list.querySelector(`.chat-list-item[data-id="${id}"]`);
+    if (!div) {
+        div = document.createElement('div');
+        div.className = `chat-list-item`;
+        div.dataset.id = id;
+        list.appendChild(div);
+    }
 
-    // Fallback if chatting with self (unlikely but possible) or array issue
-    const displayName = otherEmail || "Usuario Desconocido";
+    if (currentDirectChatId === id) div.classList.add('active');
 
-    const div = document.createElement('div');
-    div.className = `chat-list-item ${currentDirectChatId === id ? 'active' : ''}`;
+    // Identify Other User
+    // If 'participants' array exists (UIDs), use that. Else fall back to emails.
+    let displayName = "Usuario";
+    let avatarChar = "?";
+    let photoURL = null;
+    let targetUid = null;
+
+    if (data.participants && data.participants.length > 0) {
+        targetUid = data.participants.find(uid => uid !== currentUser.uid);
+    }
+
+    if (targetUid) {
+        // Fetch Profile
+        try {
+            const profile = await getUserProfile(targetUid);
+            if (profile) {
+                displayName = profile.displayName || profile.email;
+                if (profile.photoURL) photoURL = profile.photoURL;
+            }
+        } catch (e) {
+            console.error("Error fetching chat profile", e);
+        }
+    } else {
+        // Fallback to email
+        const otherEmail = data.participantEmails.find(e => e !== currentUser.email);
+        displayName = otherEmail || "Usuario Desconocido";
+    }
+
+    // Determine visual style
+    // Check if blocked
+    const isBlocked = targetUid && myBlockedUsers.includes(targetUid);
+    if (isBlocked) {
+        displayName += " (Bloqueado)";
+        div.style.opacity = "0.5";
+    } else {
+        div.style.opacity = "1";
+    }
+
+    avatarChar = displayName[0].toUpperCase();
+
+    let avatarHtml = `<div class="avatar" style="width:36px; height:36px; font-size:1rem;">${avatarChar}</div>`;
+    if (photoURL) {
+        avatarHtml = `<div class="avatar" style="width:36px; height:36px; font-size:1rem;"><img src="${photoURL}"></div>`;
+    }
+
     div.innerHTML = `
-        <div class="avatar" style="width:36px; height:36px; font-size:1rem;">${escapeHtml(displayName)[0].toUpperCase()}</div>
-        <div style="font-weight:500;">${escapeHtml(displayName)}</div>
+        ${avatarHtml}
+        <div style="flex:1; overflow:hidden;">
+            <div style="font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; justify-content:space-between; align-items:center;">
+                ${escapeHtml(displayName)}
+                ${pinnedChats.includes(id) ? '<i class="fas fa-thumbtack" style="font-size:0.7rem; color:var(--text-dim); margin-left:5px;"></i>' : ''}
+            </div>
+        </div>
+        <div class="chat-options-btn" onclick="showChatContextMenu(event, '${id}', '${targetUid}')" style="padding:4px 8px; color:var(--text-dim); border-radius:4px; transition:background 0.2s;">
+            <i class="fas fa-ellipsis-v"></i>
+        </div>
     `;
-    div.addEventListener('click', () => selectDirectChat(id, displayName));
-    list.appendChild(div);
+
+    // Re-attach listener (clicking main div opens chat)
+    div.onclick = (e) => {
+        // Don't trigger if clicked on the options button
+        if (e.target.closest('.chat-options-btn')) return;
+        selectDirectChat(id, displayName.replace(" (Bloqueado)", ""));
+    };
 }
+
+let activeChatContextId = null;
+let activeChatTargetUid = null;
+
+window.showChatContextMenu = (e, chatId, targetUid) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (targetUid === 'null' || targetUid === 'undefined') targetUid = null;
+
+    activeChatContextId = chatId;
+    activeChatTargetUid = targetUid;
+
+    const menu = document.getElementById('chat-context-menu');
+
+    // Update labels based on state
+    // Block/Unblock label
+    const isBlocked = myBlockedUsers.includes(targetUid);
+    const blockItem = document.getElementById('ctx-chat-block');
+    blockItem.querySelector('span').textContent = isBlocked ? 'Desbloquear' : 'Bloquear';
+
+    // Pin/Unpin label
+    const isPinned = pinnedChats.includes(chatId);
+    const pinItem = document.getElementById('ctx-chat-pin');
+    pinItem.querySelector('span').textContent = isPinned ? 'Desfijar' : 'Fijar';
+    pinItem.querySelector('i').className = isPinned ? 'fas fa-thumbtack-slash' : 'fas fa-thumbtack';
+
+    // Position menu
+    menu.style.display = 'block';
+
+    // Simple positioning logic
+    const rect = e.target.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + 5}px`;
+    menu.style.left = `${rect.left - 100}px`; // Shift left to keep in view
+
+    // Close on click outside
+    const closeHandler = () => {
+        menu.style.display = 'none';
+        document.removeEventListener('click', closeHandler);
+    };
+    // Delay slightly so this click doesn't close it immediately
+    setTimeout(() => document.addEventListener('click', closeHandler), 0);
+};
+
+window.contextChatAction = async (action) => {
+    const chatId = activeChatContextId;
+    const targetUid = activeChatTargetUid;
+
+    if (!chatId) return;
+
+    if (action === 'delete') {
+        // "Borrar" = Hide
+        if (confirm("¿Borrar este chat de tu lista? Volverá a aparecer si hay nuevos mensajes.")) {
+            try {
+                await updateDoc(doc(db, "direct_chats", chatId), {
+                    hiddenBy: arrayUnion(currentUser.uid)
+                });
+                // View will refresh and remove it
+                if (currentDirectChatId === chatId) {
+                    document.getElementById('direct-chat-content-area').style.display = 'none';
+                    document.getElementById('direct-chat-placeholder').style.display = 'flex';
+                    currentDirectChatId = null;
+                }
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        }
+    } else if (action === 'block') {
+        if (targetUid) {
+            await toggleBlockUser(targetUid);
+            // Label update is handled by reopen or logic, but toggleBlockUser might reload page or reselect logic.
+            // toggleBlockUser implementation alerts and modifies 'myBlockedUsers'.
+        } else {
+            alert("No se puede bloquear a este usuario (ID desconocido).");
+        }
+    } else if (action === 'pin') {
+        try {
+            const userRef = doc(db, "users", currentUser.uid);
+            if (pinnedChats.includes(chatId)) {
+                await updateDoc(userRef, { pinnedChats: arrayRemove(chatId) });
+                pinnedChats = pinnedChats.filter(id => id !== chatId);
+            } else {
+                await updateDoc(userRef, { pinnedChats: arrayUnion(chatId) });
+                pinnedChats.push(chatId);
+            }
+            // Refresh list
+            loadDirectChats();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+};
 
 async function selectDirectChat(chatId, displayName) {
     currentDirectChatId = chatId;
     document.getElementById('direct-chat-placeholder').style.display = 'none';
-    document.getElementById('direct-chat-content-area').style.display = 'flex';
+    const contentArea = document.getElementById('direct-chat-content-area');
+    contentArea.style.display = 'flex';
 
     document.getElementById('direct-chat-header-name').textContent = displayName;
     document.getElementById('direct-chat-header-avatar').textContent = displayName[0].toUpperCase();
 
+    // Find Target UID
+    // We need to fetch the chat doc to get participants or store it in the DOM element
+    // Let's fetch it, it's safer.
+    const chatDoc = await getDoc(doc(db, "direct_chats", chatId));
+    let targetUid = null;
+    if (chatDoc.exists()) {
+        const data = chatDoc.data();
+        if (data.participants) {
+            targetUid = data.participants.find(uid => uid !== currentUser.uid);
+        }
+    }
+
+    // Check if blocked
+    const isBlocked = targetUid && myBlockedUsers.includes(targetUid);
+
+    // Add Block Button to Header - REMOVED (Replaced by Context Menu)
+    const headerName = document.getElementById('direct-chat-header-name');
+    const existingBtn = headerName.querySelector('.block-btn-wrapper');
+    if (existingBtn) existingBtn.remove();
+
+
+    // Disable input if blocked
+    const input = document.getElementById('direct-message-input');
+    const submitBtn = document.querySelector('#direct-message-form button');
+
+    if (isBlocked) {
+        input.disabled = true;
+        input.placeholder = "Has bloqueado a este usuario.";
+        submitBtn.disabled = true;
+    } else {
+        input.disabled = false;
+        input.placeholder = "Escribe un mensaje...";
+        submitBtn.disabled = false;
+    }
+
     // Highlight active in list
     document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active'));
-    // We would need to match ID again but re-render handles it usually. 
 
     loadMessages(chatId, document.getElementById('direct-messages-container'));
 }

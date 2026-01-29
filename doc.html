@@ -371,6 +371,7 @@
             margin-left: 5px;
         }
     </style>
+    <link rel="icon" type="image/png" href="images/ARTICA-LOGO.png">
 </head>
 
 <body>
@@ -398,8 +399,9 @@
     <!-- Toolbar -->
     <div class="toolbar">
         <!-- Font & Size -->
+        <!-- Font & Size -->
         <div class="toolbar-group">
-            <select class="toolbar-select" id="font-family" onchange="execCommand('fontName', this.value)">
+            <select class="toolbar-select" id="font-family" onchange="formatDoc('fontName', this.value)">
                 <option value="Arial">Arial</option>
                 <option value="Times New Roman">Times New Roman</option>
                 <option value="Courier New">Courier New</option>
@@ -407,7 +409,7 @@
                 <option value="Verdana">Verdana</option>
                 <option value="Inter" selected>Inter</option>
             </select>
-            <select class="toolbar-select" id="font-size" onchange="execCommand('fontSize', this.value)">
+            <select class="toolbar-select" id="font-size" onchange="formatDoc('fontSize', this.value)">
                 <option value="1">8pt</option>
                 <option value="2">10pt</option>
                 <option value="3">12pt</option>
@@ -422,16 +424,16 @@
 
         <!-- Text Formatting -->
         <div class="toolbar-group">
-            <button class="toolbar-btn" onclick="execCommand('bold')" title="Negrita (Ctrl+B)">
+            <button class="toolbar-btn" onclick="formatDoc('bold')" title="Negrita (Ctrl+B)">
                 <i class="fas fa-bold"></i>
             </button>
-            <button class="toolbar-btn" onclick="execCommand('italic')" title="Cursiva (Ctrl+I)">
+            <button class="toolbar-btn" onclick="formatDoc('italic')" title="Cursiva (Ctrl+I)">
                 <i class="fas fa-italic"></i>
             </button>
-            <button class="toolbar-btn" onclick="execCommand('underline')" title="Subrayado (Ctrl+U)">
+            <button class="toolbar-btn" onclick="formatDoc('underline')" title="Subrayado (Ctrl+U)">
                 <i class="fas fa-underline"></i>
             </button>
-            <button class="toolbar-btn" onclick="execCommand('strikeThrough')" title="Tachado">
+            <button class="toolbar-btn" onclick="formatDoc('strikeThrough')" title="Tachado">
                 <i class="fas fa-strikethrough"></i>
             </button>
         </div>
@@ -441,25 +443,25 @@
         <!-- Colors -->
         <div class="toolbar-group">
             <input type="color" class="color-picker" id="text-color" value="#000000"
-                onchange="execCommand('foreColor', this.value)" title="Color de texto">
+                onchange="formatDoc('foreColor', this.value)" title="Color de texto">
             <input type="color" class="color-picker" id="bg-color" value="#ffff00"
-                onchange="execCommand('hiliteColor', this.value)" title="Color de fondo">
+                onchange="formatDoc('hiliteColor', this.value)" title="Color de fondo">
         </div>
 
         <div class="toolbar-separator"></div>
 
         <!-- Alignment -->
         <div class="toolbar-group">
-            <button class="toolbar-btn" onclick="execCommand('justifyLeft')" title="Alinear izquierda">
+            <button class="toolbar-btn" onclick="formatDoc('justifyLeft')" title="Alinear izquierda">
                 <i class="fas fa-align-left"></i>
             </button>
-            <button class="toolbar-btn" onclick="execCommand('justifyCenter')" title="Centrar">
+            <button class="toolbar-btn" onclick="formatDoc('justifyCenter')" title="Centrar">
                 <i class="fas fa-align-center"></i>
             </button>
-            <button class="toolbar-btn" onclick="execCommand('justifyRight')" title="Alinear derecha">
+            <button class="toolbar-btn" onclick="formatDoc('justifyRight')" title="Alinear derecha">
                 <i class="fas fa-align-right"></i>
             </button>
-            <button class="toolbar-btn" onclick="execCommand('justifyFull')" title="Justificar">
+            <button class="toolbar-btn" onclick="formatDoc('justifyFull')" title="Justificar">
                 <i class="fas fa-align-justify"></i>
             </button>
         </div>
@@ -468,10 +470,10 @@
 
         <!-- Lists -->
         <div class="toolbar-group">
-            <button class="toolbar-btn" onclick="execCommand('insertUnorderedList')" title="Lista con viñetas">
+            <button class="toolbar-btn" onclick="formatDoc('insertUnorderedList')" title="Lista con viñetas">
                 <i class="fas fa-list-ul"></i>
             </button>
-            <button class="toolbar-btn" onclick="execCommand('insertOrderedList')" title="Lista numerada">
+            <button class="toolbar-btn" onclick="formatDoc('insertOrderedList')" title="Lista numerada">
                 <i class="fas fa-list-ol"></i>
             </button>
         </div>
@@ -480,10 +482,10 @@
 
         <!-- More Actions -->
         <div class="toolbar-group">
-            <button class="toolbar-btn" onclick="execCommand('createLink')" title="Insertar enlace">
+            <button class="toolbar-btn" onclick="formatDoc('createLink')" title="Insertar enlace">
                 <i class="fas fa-link"></i>
             </button>
-            <button class="toolbar-btn" onclick="execCommand('unlink')" title="Quitar enlace">
+            <button class="toolbar-btn" onclick="formatDoc('unlink')" title="Quitar enlace">
                 <i class="fas fa-unlink"></i>
             </button>
             <button class="toolbar-btn" onclick="insertImage()" title="Insertar imagen">
@@ -495,10 +497,10 @@
 
         <!-- Undo/Redo -->
         <div class="toolbar-group">
-            <button class="toolbar-btn" onclick="execCommand('undo')" title="Deshacer (Ctrl+Z)">
+            <button class="toolbar-btn" onclick="formatDoc('undo')" title="Deshacer (Ctrl+Z)">
                 <i class="fas fa-undo"></i>
             </button>
-            <button class="toolbar-btn" onclick="execCommand('redo')" title="Rehacer (Ctrl+Y)">
+            <button class="toolbar-btn" onclick="formatDoc('redo')" title="Rehacer (Ctrl+Y)">
                 <i class="fas fa-redo"></i>
             </button>
         </div>

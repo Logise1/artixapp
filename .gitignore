@@ -5,3 +5,7 @@
 *.py
 __pycache__/
 *.pyc
+
+# Json y .HAR files
+*.json
+*.har

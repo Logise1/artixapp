@@ -215,6 +215,11 @@ nav {
     background: #e0e7ff;
 }
 
+.chat-options-btn:hover {
+    background: #cbd5e1 !important;
+    color: var(--text-main) !important;
+}
+
 .channel-item.draggable {
     cursor: grab;
 }

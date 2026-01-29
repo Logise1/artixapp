@@ -135,25 +135,30 @@ document.getElementById('upload-file-form').addEventListener('submit', async (e)
 });
 
 // YeetYourFiles upload helper
+// GreenBase upload helper
 async function uploadToYeet(file) {
     const formData = new FormData();
-    formData.append('file', file, file.name);
+    formData.append('file', file);
 
     try {
-        const response = await fetch('https://yyf.mubilop.com/api/upload', {
+        const response = await fetch('https://greenbase.arielcapdevila.com/upload', {
             method: 'POST',
             body: formData
         });
 
-        if (!response.ok) throw new Error('Error en la subida');
-        const result = await response.json();
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Error en la subida: ${response.status} - ${errText}`);
+        }
+
+        const data = await response.json();
         return {
-            url: `https://yyf.mubilop.com${result.fileUrl}`,
+            url: `https://greenbase.arielcapdevila.com/file/${data.id}`,
             filename: file.name
         };
     } catch (err) {
         console.error(err);
-        throw new Error("Error al subir archivo. Inténtalo de nuevo.");
+        throw new Error("Error al subir archivo: " + err.message);
     }
 }
 
