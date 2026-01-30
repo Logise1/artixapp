@@ -1,4 +1,4 @@
-import { auth, db, storage, signOut, collection, addDoc, getDoc, getDocs, doc, query, where, onSnapshot, orderBy, updateDoc, setDoc, arrayUnion, arrayRemove, deleteDoc, ref, uploadBytes, getDownloadURL } from "./firebase-config.js";
+import { auth, db, storage, signOut, collection, addDoc, getDoc, getDocs, doc, query, where, onSnapshot, orderBy, updateDoc, setDoc, arrayUnion, arrayRemove, deleteDoc, ref, uploadBytes, getDownloadURL, limit } from "./firebase-config.js";
 
 let currentUser = null;
 let currentRole = null;
@@ -7,6 +7,11 @@ let currentChannelId = null;
 
 let currentChannelType = 'chat';
 let activeListeners = {};
+const notificationSound = new Audio('audio/notification.ogg');
+let userReadStatus = {}; // Map: id -> timestamp
+let globalChannelData = {}; // Map: id -> { lastMessageTimestamp, classId }
+let globalClassUnread = {}; // Map: classId -> boolean
+let globalDirectChatData = {}; // Map: id -> { lastUpdated, hiddenBy }
 
 function unsubscribeFrom(key) {
     if (activeListeners[key]) {
@@ -179,6 +184,7 @@ auth.onAuthStateChanged(async (user) => {
 
     // NEW: Update Profile UI
     await updateProfileUI(user);
+    setupGlobalNotifications(user.uid);
 });
 
 
@@ -294,22 +300,35 @@ function renderClassCard(id, data) {
     const hue = data.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 360;
     const gradient = `linear-gradient(135deg, hsl(${hue}, 70%, 60%), hsl(${hue + 40}, 70%, 40%))`;
 
+    // Check unread status for class
+    if (globalClassUnread[id]) {
+        const badge = document.createElement('div');
+        badge.className = 'card-notification-badge';
+        badge.title = 'Nuevos mensajes';
+        card.style.position = 'relative';
+        card.appendChild(badge);
+    }
+
     card.innerHTML = `
-        <div class="class-header" style="background: ${gradient}">
-            <div class="class-title">${escapeHtml(data.name)}</div>
+        <div class="class-header" style="background:${data.color || 'var(--primary)'};">
+            <h3 class="class-title">${escapeHtml(data.name)}</h3>
+            ${globalClassUnread[id] ? '<div class="card-notification-badge"></div>' : ''}
         </div>
         <div class="class-body">
-            <div class="class-info">
-                <i class="fas fa-users" style="margin-right: 6px;"></i>
-                ${data.studentEmails ? data.studentEmails.length : 0} Estudiantes
-            </div>
+            <div class="class-info"><i class="fas fa-user-graduate"></i> Profesor: ${data.professorName || '...'}</div>
+            <div class="class-info"><i class="fas fa-clock"></i> Creada: ${new Date(data.createdAt.toDate()).toLocaleDateString()}</div>
             <div style="font-size: 0.8rem; color: #64748b; margin-top: auto;">
                 Código: <strong>${data.code || 'N/A'}</strong>
             </div>
         </div>
     `;
-    card.addEventListener('click', () => enterClass(id, data));
+    card.id = `class-card-${id}`;
+
     classesGrid.appendChild(card);
+
+    card.addEventListener('click', () => {
+        enterClass(id, data);
+    });
 }
 
 // Create Class
@@ -514,6 +533,16 @@ function loadChannels(classId) {
 function renderChannelItem(id, data) {
     const div = document.createElement('div');
     div.className = `channel-item ${currentChannelId === id ? 'active' : ''} ${currentRole === 'professor' ? 'draggable' : ''}`;
+    div.id = `channel-item-${id}`;
+
+    // Check unread
+    let unreadHtml = '';
+    const lastMsg = data.lastMessageTimestamp ? data.lastMessageTimestamp.toDate().getTime() : 0;
+    const lastRead = userReadStatus[id] ? userReadStatus[id].toDate().getTime() : 0;
+
+    if (lastMsg > lastRead && currentChannelId !== id) {
+        unreadHtml = `<div class="notification-badge">!</div>`;
+    }
 
     if (currentRole === 'professor') {
         div.draggable = true;
@@ -906,9 +935,6 @@ async function refreshUserAvatars(uid) {
         const selector = `[class*="user-avatar-${uid.replace(/["\\]/g, '\\$&')}"]`;
         // actually simple getElementsByClassName is fastest/safest?
         // But we want specific ones. 
-        // Let's use attribute selector with exact substring if possible or just use escaped UID.
-
-        // Simpler: iterate all avatars? No too slow.
         // Let's try CSS.escape pattern manually?
         // Actually, if we use setAttribute('data-userid', uid), it is much cleaner.
 
@@ -1060,25 +1086,41 @@ function renderMessage(data, container = activeMessageContainer) {
         deleteBtn = `<button class="reply-btn" style="color:#ef4444;" onclick="deleteMessage('${data.id}')"><i class="fas fa-trash"></i></button>`;
     }
 
-    div.innerHTML = `
-        ${avatarHtml}
-        <div class="msg-content" style="flex:1;">
-            <h4>
-                ${escapeHtml(data.userName)} 
-                <span style="font-size:0.75rem; color:var(--text-dim); font-weight:400; margin-left:8px;">
-                    ${new Date(data.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-            </h4>
-            ${replyHtml}
-            ${content}
-            <div class="message-actions" style="display:flex; gap:10px;">
-                <button class="reply-btn" onclick="startReply('${data.id}', '${data.userName}', '${data.text ? escapeHtml(data.text.substr(0, 40)).replace(/'/g, "\\'") + '...' : 'Archivo'}')">
-                    <i class="fas fa-reply"></i> Responder
-                </button>
-                ${deleteBtn}
+    // Customize based on sender
+    const isMe = (data.userId === currentUser.uid);
+    if (isMe) {
+        div.classList.add('msg-own');
+        div.innerHTML = `
+            <div class="msg-bubble own">
+                ${replyHtml}
+                ${content}
+                <div class="msg-meta">
+                     ${new Date(data.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                     ${deleteBtn ? deleteBtn : ''} <!-- Prof delete own? Usually no need but keeping functionality -->
+                </div>
             </div>
-        </div>
-    `;
+            ${avatarHtml}
+        `;
+    } else {
+        div.classList.add('msg-other');
+        div.innerHTML = `
+            ${avatarHtml}
+            <div style="max-width: 70%;">
+                 <div style="margin-left:5px; font-size:0.8rem; color:var(--text-dim); margin-bottom:2px;">${escapeHtml(data.userName)}</div>
+                 <div class="msg-bubble other">
+                    ${replyHtml}
+                    ${content}
+                    <div class="msg-meta">
+                        ${new Date(data.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <button class="reply-btn-icon" onclick="startReply('${data.id}', '${data.userName}', '${data.text ? escapeHtml(data.text.substr(0, 40)).replace(/'/g, "\\'") + '...' : 'Archivo'}')">
+                             <i class="fas fa-reply"></i>
+                        </button>
+                        ${deleteBtn}
+                    </div>
+                 </div>
+            </div>
+        `;
+    }
 
     container.appendChild(div);
 }
@@ -1158,6 +1200,17 @@ async function handleSendMessage(inputEl, fileInputEl, formPreviewEl, channelId,
 
     await addDoc(collection(db, "messages"), msgData);
 
+    // Update Channel/Chat Metadata for Last Message
+    const updatePayload = {
+        lastMessageTimestamp: new Date(),
+        lastMessageBy: currentUser.uid,
+        lastMessageText: (msgType === 'file' ? '📎 Archivo adjunto' : (text.length > 50 ? text.substring(0, 50) + '...' : text))
+    };
+
+    if (currentClassId) {
+        updateDoc(doc(db, "channels", channelId), updatePayload).catch(e => console.error("Error updating channel metadata", e));
+    }
+
     // Update Direct Chat metadata (unhide, lastUpdated)
     if (msgData.type === 'text' || msgData.type === 'file') {
         // We do this for both class channels and direct chats, but 'hiddenBy' only exists on direct_chats usually.
@@ -1170,7 +1223,9 @@ async function handleSendMessage(inputEl, fileInputEl, formPreviewEl, channelId,
                 // Clear hiddenBy so it reappears for everyone, update time
                 await updateDoc(doc(db, "direct_chats", channelId), {
                     hiddenBy: [],
-                    lastUpdated: new Date()
+                    lastUpdated: new Date(),
+                    lastMessageText: updatePayload.lastMessageText,
+                    lastMessageBy: currentUser.uid
                 });
             } catch (e) { console.log("Not a direct chat or update failed", e); }
         }
@@ -1530,6 +1585,8 @@ async function performSearch(rawTerm) {
 
         // B) DisplayName (Try Uppercase first as it is dominant for students)
         // Note: If user typed "Ale", termUpper is "ALE". Matches "ALEJANDRO".
+        // Let's stick to Upper for now as it solves the reported issue "Si pongo Ale...".
+
         const qUsersName = query(collection(db, "users"),
             where("displayName", ">=", termUpper),
             where("displayName", "<=", termUpper + '\uf8ff')
@@ -2078,6 +2135,32 @@ async function renderChatListItem(id, data) {
         avatarHtml = `<div class="avatar" style="width:36px; height:36px; font-size:1rem;"><img src="${photoURL}"></div>`;
     }
 
+    let unreadHtml = '';
+    const lastMsg = data.lastUpdated ? data.lastUpdated.toDate().getTime() : (data.createdAt ? data.createdAt.toDate().getTime() : 0);
+    const lastRead = userReadStatus[id] ? userReadStatus[id].toDate().getTime() : 0;
+
+    if (lastMsg > lastRead && currentDirectChatId !== id) {
+        unreadHtml = `<div class="notification-badge">1</div>`;
+    }
+
+    // Last message preview logic
+    let lastMessagePreview = "";
+    // Check if we have lastMessageText stored (new system)
+    if (data.lastMessageText) {
+        const prefix = (data.lastMessageBy === currentUser.uid) ? "Usted: " : "";
+        lastMessagePreview = prefix + escapeHtml(data.lastMessageText);
+    } else {
+        // Trigger backfill asynchronously if warranted (e.g. if createdAt exists but no lastMessageText)
+        // Check if we already tried recently to avoid spam (maybe store in memory map or just fire once)
+        // We'll just fire a query. If empty, it stays empty.
+        // backfillLastMessage(id).then(text => ...update UI...);
+        // But better to update Firestore so it persists for everyone
+        if (!data._backfillAttempted) {
+            data._backfillAttempted = true; // prevent loop in this session
+            backfillLastMessage(id);
+        }
+    }
+
     div.innerHTML = `
         ${avatarHtml}
         <div style="flex:1; overflow:hidden;">
@@ -2085,7 +2168,11 @@ async function renderChatListItem(id, data) {
                 ${escapeHtml(displayName)}
                 ${pinnedChats.includes(id) ? '<i class="fas fa-thumbtack" style="font-size:0.7rem; color:var(--text-dim); margin-left:5px;"></i>' : ''}
             </div>
+            <div style="font-size:0.8rem; color: #64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${lastMessagePreview}
+            </div>
         </div>
+        ${unreadHtml}
         <div class="chat-options-btn" onclick="showChatContextMenu(event, '${id}', '${targetUid}')" style="padding:4px 8px; color:var(--text-dim); border-radius:4px; transition:background 0.2s;">
             <i class="fas fa-ellipsis-v"></i>
         </div>
@@ -2193,6 +2280,10 @@ window.contextChatAction = async (action) => {
 
 async function selectDirectChat(chatId, displayName) {
     currentDirectChatId = chatId;
+    markAsRead(chatId);
+
+    // UI
+    document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active'));
     document.getElementById('direct-chat-placeholder').style.display = 'none';
     const contentArea = document.getElementById('direct-chat-content-area');
     contentArea.style.display = 'flex';
@@ -2234,9 +2325,6 @@ async function selectDirectChat(chatId, displayName) {
         input.placeholder = "Escribe un mensaje...";
         submitBtn.disabled = false;
     }
-
-    // Highlight active in list
-    document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active'));
 
     loadMessages(chatId, document.getElementById('direct-messages-container'));
 }
@@ -2763,6 +2851,29 @@ async function deleteFile(itemId) {
     }
 }
 
+async function backfillLastMessage(chatId) {
+    try {
+        const q = query(collection(db, "messages"), where("channelId", "==", chatId), orderBy("createdAt", "desc"), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            const msg = snap.docs[0].data();
+            // Determine text
+            let text = "";
+            if (msg.type === 'file') text = '📎 Archivo adjunto';
+            else if (msg.text) text = (msg.text.length > 50 ? msg.text.substring(0, 50) + '...' : msg.text);
+
+            if (text) {
+                await updateDoc(doc(db, "direct_chats", chatId), {
+                    lastMessageText: text,
+                    lastMessageBy: msg.userId || null,
+                    // We don't overwrite lastUpdated blindly, use msg time if newer? 
+                    // No, keep existing lastUpdated or use msg time.
+                });
+            }
+        }
+    } catch (e) { console.error("Backfill error", e); }
+}
+
 // Drive Selector for Assignments
 let currentDriveSelectorFolderId = null;
 
@@ -2846,4 +2957,231 @@ function handleDriveFileSelect(id, data) {
     dropZone.style.display = 'none';
 
     document.getElementById('drive-selector-modal').classList.remove('active');
+}
+
+// ========================================
+// NOTIFICATIONS SYSTEM
+// ========================================
+
+async function setupGlobalNotifications(uid) {
+    // 1. Listen to User Read Status
+    onSnapshot(doc(db, "users", uid), (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.data();
+            userReadStatus = data.readStatus || {};
+            // Convert timestamps
+            for (const key in userReadStatus) {
+                // If stored as Firestore Timestamp
+                if (userReadStatus[key].toDate) {
+                    // Keep as object with toDate() or convert to Date?
+                    // Our checks use .toDate().getTime(), so keeping as is is fine.
+                }
+            }
+            updateAllBadges();
+        }
+    });
+
+    // 2. Listen to All Channels (Class Channels)
+    // First, find all class IDs I am in
+    try {
+        const qStud = query(collection(db, "classes"), where("studentEmails", "array-contains", currentUser.email));
+        const qProf = query(collection(db, "classes"), where("professorId", "==", uid));
+
+        const [s1, s2] = await Promise.all([getDocs(qStud), getDocs(qProf)]);
+        const classIds = Array.from(new Set([...s1.docs.map(d => d.id), ...s2.docs.map(d => d.id)]));
+
+        if (classIds.length > 0) {
+            // Batch strict 10 limit for 'in' query. If > 10, we'd need solution. 
+            // For now assuming < 10 active classes for prototype.
+            const queryIds = classIds.slice(0, 10);
+            const qCh = query(collection(db, "channels"), where("classId", "in", queryIds));
+
+            onSnapshot(qCh, (snapshot) => {
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const prevData = globalChannelData[doc.id];
+                    globalChannelData[doc.id] = { ...data, id: doc.id };
+
+                    // Check for new message event
+                    if (prevData && data.lastMessageTimestamp) {
+                        const prevTime = prevData.lastMessageTimestamp ? prevData.lastMessageTimestamp.toDate().getTime() : 0;
+                        const newTime = data.lastMessageTimestamp.toDate().getTime();
+
+                        if (newTime > prevTime && data.lastMessageBy !== currentUser.uid) {
+                            playNotificationIfBackground(doc.id, 'channel');
+                        }
+                    }
+                });
+                updateAllBadges();
+            });
+        }
+    } catch (e) {
+        console.error("Error setting up channel notifications", e);
+    }
+
+    // 3. Listen to Direct Chats
+    const qChats = query(collection(db, "direct_chats"), where("participantEmails", "array-contains", currentUser.email));
+    onSnapshot(qChats, (snapshot) => {
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const prevData = globalDirectChatData[doc.id];
+            globalDirectChatData[doc.id] = { ...data, id: doc.id };
+
+            // If actively viewing this chat, mark as read immediately so badge doesn't stick
+            if (currentDirectChatId === doc.id) {
+                markAsRead(doc.id);
+            }
+
+            // Check for new message
+            if (prevData && data.lastUpdated) {
+                const prevTime = prevData.lastUpdated ? prevData.lastUpdated.toDate().getTime() : 0;
+                const newTime = data.lastUpdated.toDate().getTime();
+
+                if (newTime > prevTime) {
+                    playNotificationIfBackground(doc.id, 'chat');
+                }
+            }
+        });
+        updateAllBadges();
+    });
+}
+
+function playNotificationIfBackground(itemId, type) {
+    const isHidden = document.hidden;
+
+    // Also check if we are currently VIEWING this item
+    let isCurrent = false;
+    if (type === 'channel' && currentChannelId === itemId && !isHidden) isCurrent = true;
+    if (type === 'chat' && currentDirectChatId === itemId && !isHidden) isCurrent = true;
+
+    if (!isCurrent) {
+        notificationSound.play().catch(e => console.log("Audio play failed (interaction?):", e));
+    }
+}
+
+async function markAsRead(id) {
+    if (!currentUser) return;
+    try {
+        // Use dot notation to update specific key in map
+        await updateDoc(doc(db, "users", currentUser.uid), {
+            [`readStatus.${id}`]: new Date()
+        });
+        // Optimistic update
+        if (!userReadStatus) userReadStatus = {};
+        userReadStatus[id] = { toDate: () => new Date() }; // Mock Firestore Timestamp
+        updateAllBadges();
+    } catch (e) {
+        console.error("Error marking as read", e);
+        // Create user doc if missing? Users usually exist.
+    }
+}
+
+function updateAllBadges() {
+    let totalUnreadChats = 0;
+    let totalUnreadClasses = false; // Just flag
+
+    globalClassUnread = {}; // Reset
+
+    // 1. Update Channel Badges & Class Unread Status
+    Object.values(globalChannelData).forEach(ch => {
+        const lastMsg = ch.lastMessageTimestamp ? ch.lastMessageTimestamp.toDate().getTime() : 0;
+        const lastRead = userReadStatus[ch.id] ? userReadStatus[ch.id].toDate().getTime() : 0;
+
+        const isUnread = (lastMsg > lastRead) && (currentChannelId !== ch.id);
+
+        // Update DOM if exists
+        const el = document.getElementById(`channel-item-${ch.id}`);
+        if (el) {
+            // Find or create badge
+            let badge = el.querySelector('.notification-badge');
+            if (isUnread) {
+                if (!badge) {
+                    badge = document.createElement('div');
+                    badge.className = 'notification-badge';
+                    badge.innerText = '!';
+                    el.appendChild(badge);
+                }
+            } else {
+                if (badge) badge.remove();
+            }
+        }
+
+        if (isUnread && ch.classId) {
+            globalClassUnread[ch.classId] = true;
+            totalUnreadClasses = true;
+        }
+    });
+
+    // 2. Update Class Cards
+    // Iterate all class cards in DOM
+    document.querySelectorAll('.class-card').forEach(card => {
+        const id = card.id.replace('class-card-', '');
+        let badge = card.querySelector('.card-notification-badge');
+
+        if (globalClassUnread[id]) {
+            if (!badge) {
+                // Must insert into header
+                const header = card.querySelector('.class-header');
+                if (header) {
+                    badge = document.createElement('div');
+                    badge.className = 'card-notification-badge';
+                    header.style.position = 'relative';
+                    header.appendChild(badge);
+                }
+            }
+        } else {
+            if (badge) badge.remove();
+        }
+    });
+
+    // 3. Update Direct Chat Badges
+    Object.values(globalDirectChatData).forEach(chat => {
+        const lastMsg = chat.lastUpdated ? chat.lastUpdated.toDate().getTime() : 0;
+        const lastRead = userReadStatus[chat.id] ? userReadStatus[chat.id].toDate().getTime() : 0;
+
+        const isUnread = (lastMsg > lastRead) && (currentDirectChatId !== chat.id);
+
+        if (isUnread) totalUnreadChats++;
+
+        // Update DOM if exists
+        const el = document.querySelector(`.chat-list-item[data-id="${chat.id}"]`);
+        if (el) {
+            let badge = el.querySelector('.notification-badge');
+            if (isUnread) {
+                if (!badge) {
+                    badge = document.createElement('div');
+                    badge.className = 'notification-badge';
+                    badge.innerText = '1';
+                    el.appendChild(badge);
+                }
+            } else {
+                if (badge) badge.remove();
+            }
+        }
+    });
+
+    // 4. Update Sidebar Rail Badges
+    updateSidebarBadge('nav-classes', totalUnreadClasses); // Just show dot if any class has unread
+    updateSidebarBadge('nav-chats', totalUnreadChats > 0);
+}
+
+function updateSidebarBadge(elementId, show) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    let badge = el.querySelector('.notification-badge');
+    if (show) {
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.className = 'notification-badge';
+            // Empty content or number? User asked for Red Circle.
+            badge.innerText = '';
+            badge.style.width = '12px';
+            badge.style.height = '12px';
+            badge.style.minWidth = '0';
+            el.appendChild(badge);
+        }
+    } else {
+        if (badge) badge.remove();
+    }
 }

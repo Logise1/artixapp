@@ -11,7 +11,7 @@ const firebaseConfig = {
 // Initialize Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, doc, getDoc, setDoc, query, where, getDocs, onSnapshot, orderBy, updateDoc, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, doc, getDoc, setDoc, query, where, getDocs, onSnapshot, orderBy, updateDoc, arrayUnion, arrayRemove, deleteDoc, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const app = initializeApp(firebaseConfig);
@@ -22,6 +22,6 @@ const storage = getStorage(app);
 export {
     app, auth, db, storage,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut,
-    collection, addDoc, doc, getDoc, setDoc, query, where, getDocs, onSnapshot, orderBy, updateDoc, arrayUnion, arrayRemove, deleteDoc,
+    collection, addDoc, doc, getDoc, setDoc, query, where, getDocs, onSnapshot, orderBy, updateDoc, arrayUnion, arrayRemove, deleteDoc, limit,
     ref, uploadBytes, getDownloadURL
 };

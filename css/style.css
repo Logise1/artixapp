@@ -263,20 +263,135 @@ nav {
     gap: 20px;
 }
 
+/* Messages Layout */
 .message {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     padding: 8px 0;
-    align-items: flex-start;
+    /* Reduced padding for compact look */
+    margin-bottom: 4px;
     animation: fadeIn 0.3s ease;
+    width: 100%;
 }
 
-.message:hover {
-    background: rgba(0, 0, 0, 0.02);
-    border-radius: 8px;
-    margin: 0 -16px;
-    padding: 8px 16px;
+/* Own Message (Right Aligned) */
+.message.msg-own {
+    justify-content: flex-end;
+    align-items: flex-end;
 }
+
+/* Other Message (Left Aligned) */
+.message.msg-other {
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+/* Base Bubble */
+
+/* Base Bubble */
+.msg-bubble {
+    max-width: 90%;
+    width: fit-content;
+    min-width: 60px;
+    /* Ensure space for time */
+    padding: 8px 12px;
+    border-radius: 12px;
+    position: relative;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    /* Webkit compat */
+}
+
+
+.msg-bubble p {
+    margin: 0;
+    padding: 0;
+}
+
+/* Own Bubble Style */
+.msg-bubble.own {
+    background-color: var(--primary);
+    /* Use primary color */
+    color: white;
+    border-top-right-radius: 2px;
+    /* Visual cue */
+    margin-left: auto;
+    /* Ensure it pushes right if wrapper allows */
+}
+
+/* Other Bubble Style */
+.msg-bubble.other {
+    background-color: #ffffff;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    border-top-left-radius: 2px;
+    /* Visual cue */
+    margin-right: auto;
+}
+
+/* Metadata inside bubble */
+.msg-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    /* Always at end */
+    gap: 6px;
+    margin-top: 2px;
+    font-size: 0.65rem;
+    opacity: 0.7;
+    float: right;
+    /* Use float to let text wrap around if possible, or just sit below */
+    margin-left: 8px;
+    /* Spacing from text */
+    white-space: nowrap;
+    /* Prevent vertical stacking of time */
+}
+
+/* Clearfix if using float */
+/* Clearfix if using float */
+.msg-bubble::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* Override text colors for own bubble meta */
+.msg-bubble.own .msg-meta {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Override links in own bubble */
+.msg-bubble.own a {
+    color: white;
+    text-decoration: underline;
+}
+
+/* Reply Button Icon */
+.reply-btn-icon {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0;
+    width: auto;
+    margin: 0;
+}
+
+/* Quoted message style inside bubble */
+.quoted-message {
+    border-left: 3px solid rgba(0, 0, 0, 0.2);
+    padding-left: 8px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    opacity: 0.8;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
 
 /* Profile Picture & Upload */
 .user-profile-section {
@@ -518,6 +633,51 @@ nav {
     border: none;
     box-shadow: none;
     padding: 0;
+}
+
+/* Notification Badges */
+.notification-badge {
+    background-color: #ef4444;
+    color: white;
+    border-radius: 50%;
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.4);
+    z-index: 10;
+    border: 2px solid white;
+}
+
+.rail-item .notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    margin: 0;
+}
+
+.card-notification-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 14px;
+    height: 14px;
+    background: #ef4444;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+}
+
+.channel-item .notification-badge {
+    margin-left: 10px;
+    width: 20px;
+    /* Force circle */
+    height: 20px;
 }
 
 .compose-box input:focus {
