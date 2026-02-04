@@ -229,10 +229,12 @@ window.switchMainView = (viewName) => {
     document.querySelectorAll('.rail-item').forEach(el => el.classList.remove('active'));
     if (viewName === 'classes') document.getElementById('nav-classes').classList.add('active');
     if (viewName === 'chats') document.getElementById('nav-chats').classList.add('active');
+    if (viewName === 'email') document.getElementById('nav-email').classList.add('active');
 
     // Update Main Area UI
     if (viewName === 'classes') {
         document.getElementById('direct-chat-view').style.display = 'none';
+        document.getElementById('email-view').style.display = 'none';
 
         // Restore class view state or dashboard
         if (currentClassId) {
@@ -242,13 +244,40 @@ window.switchMainView = (viewName) => {
             dashboardView.style.display = 'block';
             classView.style.display = 'none';
         }
-    } else {
+    } else if (viewName === 'chats') {
         // Chats
-        unsubscribeFrom('classes'); // Optional if we want to stop listening to class list updates while in chat view
+        unsubscribeFrom('classes');
         dashboardView.style.display = 'none';
         classView.style.display = 'none';
+        document.getElementById('email-view').style.display = 'none';
         document.getElementById('direct-chat-view').style.display = 'flex';
         loadDirectChats();
+    } else if (viewName === 'email') {
+        dashboardView.style.display = 'none';
+        classView.style.display = 'none';
+        document.getElementById('direct-chat-view').style.display = 'none';
+        document.getElementById('email-view').style.display = 'flex';
+
+        if (currentUser && currentUser.email) {
+            const prefixWithDots = currentUser.email.split('@')[0];
+            const prefixNoDots = prefixWithDots.replace(/\./g, '');
+
+            // Set Iframe Source only if not already set to the mail domain
+            const iframe = document.getElementById('email-iframe');
+            if (!iframe.src || !iframe.src.includes('mail.arielcapdevila.com')) {
+                const targetUrl = `https://mail.arielcapdevila.com/?target=${prefixWithDots}`;
+                iframe.src = targetUrl;
+            }
+
+            // Show Welcome Popup if first time
+            const welcomeKey = `welcome_email_shown_${currentUser.uid}`;
+            if (!localStorage.getItem(welcomeKey)) {
+                const transformedEmail = `${prefixNoDots}@lonormal.com`;
+                document.getElementById('email-welcome-text').innerHTML = `Tu correo es <strong>${transformedEmail}</strong>`;
+                document.getElementById('email-welcome-modal').classList.add('active');
+                localStorage.setItem(welcomeKey, 'true');
+            }
+        }
     }
 };
 

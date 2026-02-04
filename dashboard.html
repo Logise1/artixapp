@@ -66,6 +66,10 @@
                 <i class="fas fa-comment-dots"></i>
                 <div class="tooltip">Chat</div>
             </div>
+            <div class="rail-item" id="nav-email" onclick="switchMainView('email')">
+                <i class="fas fa-envelope"></i>
+                <div class="tooltip">Correo</div>
+            </div>
             <div class="rail-item" id="nav-drive" onclick="window.location.href='drive.html'">
                 <i class="fas fa-cloud"></i>
                 <div class="tooltip">Mi Drive</div>
@@ -74,6 +78,11 @@
 
         <!-- Main View Container -->
         <div class="main-view-container" id="main-container">
+
+            <!-- VIEW: Email Iframe -->
+            <div id="email-view" class="view-section" style="display: none; height: 100%;">
+                <iframe id="email-iframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
 
             <!-- VIEW: Classes Dashboard -->
             <div id="dashboard-view" class="view-section">
@@ -620,6 +629,30 @@
             <button class="media-close-btn"
                 onclick="document.getElementById('media-viewer-modal').classList.remove('active')">&times;</button>
             <div id="media-viewer-content"></div>
+        </div>
+    </div>
+
+    <!-- Email Welcome Modal -->
+    <div id="email-welcome-modal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <div class="modal-header" style="justify-content: flex-end;">
+                <button class="close-modal"
+                    onclick="document.getElementById('email-welcome-modal').classList.remove('active')">&times;</button>
+            </div>
+            <div style="padding: 10px 0 20px 0;">
+                <i class="fas fa-envelope-open-text"
+                    style="font-size: 3.5rem; color: var(--primary); margin-bottom: 20px;"></i>
+                <h3 style="font-size: 1.4rem; margin-bottom: 15px;">¡Bienvenido a tu Correo!</h3>
+                <p id="email-welcome-text"
+                    style="font-size: 1.1rem; line-height: 1.6; color: var(--text-main); margin-bottom: 10px;">
+                    <!-- Text injected by JS -->
+                </p>
+                <p style="font-size: 0.95rem; color: var(--text-dim);">
+                    Úsalo para verificar cuentas de canva y similares sin sacar el móvil.
+                </p>
+            </div>
+            <button onclick="document.getElementById('email-welcome-modal').classList.remove('active')"
+                style="width: 100%; margin-top: 10px;">Entendido</button>
         </div>
     </div>
 
