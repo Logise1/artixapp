@@ -264,15 +264,16 @@ window.switchMainView = (viewName) => {
 
             // Set Iframe Source only if not already set to the mail domain
             const iframe = document.getElementById('email-iframe');
-            if (!iframe.src || !iframe.src.includes('mail.arielcapdevila.com')) {
+            if (iframe && !iframe.dataset.loaded) {
                 const targetUrl = `https://mail.arielcapdevila.com/?target=${prefixWithDots}`;
                 iframe.src = targetUrl;
+                iframe.dataset.loaded = "true";
             }
 
             // Show Welcome Popup if first time
             const welcomeKey = `welcome_email_shown_${currentUser.uid}`;
             if (!localStorage.getItem(welcomeKey)) {
-                const transformedEmail = `${prefixNoDots}@lonormal.com`;
+                const transformedEmail = `${prefixWithDots}@lonormal.com`;
                 document.getElementById('email-welcome-text').innerHTML = `Tu correo es <strong>${transformedEmail}</strong>`;
                 document.getElementById('email-welcome-modal').classList.add('active');
                 localStorage.setItem(welcomeKey, 'true');
