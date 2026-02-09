@@ -265,7 +265,7 @@ window.switchMainView = (viewName) => {
             // Set Iframe Source only if not already set to the mail domain
             const iframe = document.getElementById('email-iframe');
             if (iframe && !iframe.dataset.loaded) {
-                const targetUrl = `https://mail.arielcapdevila.com/?target=${prefixWithDots}`;
+                const targetUrl = `https://email.arielcapdevila.com/?target=${prefixWithDots}`;
                 iframe.src = targetUrl;
                 iframe.dataset.loaded = "true";
             }
