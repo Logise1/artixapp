@@ -9,6 +9,7 @@ let shareToken = null;
 let hasUnsavedChanges = false;
 let myPresenceId = null;
 let isSyncing = false;
+let savedSelection = null;
 
 // Get document ID from URL
 const urlParams = new URLSearchParams(window.location.search);
@@ -134,15 +135,15 @@ function setupAutoSave() {
         hasUnsavedChanges = true;
         showSaveStatus('saving');
         clearTimeout(saveTimeout);
-        // Save every 1 minute (60000ms) instead of 1.5 seconds
-        saveTimeout = setTimeout(() => saveDocument(), 60000);
+        // Guardado automático cada 30 segundos (30000ms)
+        saveTimeout = setTimeout(() => saveDocument(), 30000);
     });
 
     nameInput.addEventListener('input', () => {
         if (isReadOnly) return;
         hasUnsavedChanges = true;
         clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(() => saveDocument(), 60000);
+        saveTimeout = setTimeout(() => saveDocument(), 30000);
     });
 }
 
@@ -322,9 +323,26 @@ function showSaveStatus(status, customText = null) {
 }
 
 // Execute formatting commands
+// Track selection to preserve it when clicking toolbar buttons
+document.addEventListener('selectionchange', () => {
+    const sel = window.getSelection();
+    const editor = document.getElementById('editor');
+    if (sel.rangeCount > 0 && editor && editor.contains(sel.anchorNode)) {
+        savedSelection = sel.getRangeAt(0).cloneRange();
+    }
+});
+
 // Execute formatting commands
 window.formatDoc = (command, value = null) => {
     if (isReadOnly) return;
+
+    const editor = document.getElementById('editor');
+    editor.focus();
+    if (savedSelection) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedSelection);
+    }
 
     if (command === 'createLink') {
         const selection = window.getSelection();
@@ -335,14 +353,15 @@ window.formatDoc = (command, value = null) => {
 
         const url = prompt('Introduce la URL:');
         if (url) {
+            document.execCommand('styleWithCSS', false, true);
             document.execCommand(command, false, url);
         }
     } else {
+        document.execCommand('styleWithCSS', false, true);
         document.execCommand(command, false, value);
     }
 
     // Ensure editor regains focus
-    const editor = document.getElementById('editor');
     if (editor) editor.focus();
 };
 
@@ -398,10 +417,17 @@ async function uploadAndInsertImage(file) {
 
         // Insert at cursor position
         const selection = window.getSelection();
+        if (savedSelection) {
+            selection.removeAllRanges();
+            selection.addRange(savedSelection);
+        }
+
         if (selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             range.insertNode(img);
             range.collapse(false);
+        } else {
+            document.getElementById('editor').appendChild(img);
         }
 
         // Wrap images after insertion
@@ -761,15 +787,15 @@ document.addEventListener('keydown', (e) => {
         switch (e.key.toLowerCase()) {
             case 'b':
                 e.preventDefault();
-                execCommand('bold');
+                document.execCommand('bold');
                 break;
             case 'i':
                 e.preventDefault();
-                execCommand('italic');
+                document.execCommand('italic');
                 break;
             case 'u':
                 e.preventDefault();
-                execCommand('underline');
+                document.execCommand('underline');
                 break;
             case 's':
                 e.preventDefault();

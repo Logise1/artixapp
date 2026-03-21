@@ -42,8 +42,9 @@ function showToast(message, type = 'error') {
 }
 
 // Check if already logged in
+window.blockAutoRedirect = false;
 auth.onAuthStateChanged(user => {
-    if (user) {
+    if (user && !window.blockAutoRedirect) {
         window.location.href = 'dashboard.html';
     }
 });
@@ -78,6 +79,7 @@ form.addEventListener('submit', async (e) => {
 
         if (userInfo) {
             try {
+                window.blockAutoRedirect = true;
                 // Attempt to create the user
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
@@ -91,7 +93,8 @@ form.addEventListener('submit', async (e) => {
                 });
 
                 showToast(`Bienvenido ${userInfo.name}. Cuenta creada.`, 'success');
-                // Redirect will happen via onAuthStateChanged automatically
+                // Redirect manually now that we are sure the user profile exists
+                window.location.href = 'dashboard.html';
                 return;
 
             } catch (createError) {

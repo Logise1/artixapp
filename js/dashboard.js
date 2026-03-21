@@ -82,10 +82,28 @@ async function updateProfileUI(user) {
             loadClasses();
         } else {
             // ... existing fallback ...
-            avatarEl.querySelector('span').textContent = user.email[0].toUpperCase();
+            avatarEl.innerHTML = `<span>${user.email[0].toUpperCase()}</span><input type="file" id="profile-upload-input" style="display:none;" accept="image/*"><div class="profile-overlay"><i class="fas fa-camera"></i></div>`;
+            attachProfileUploadListener();
+
+            currentRole = 'student';
+            setupUIForRole();
+            loadClasses();
+
+            // Self-heal document
+            try {
+                await setDoc(doc(db, "users", user.uid), {
+                    email: user.email,
+                    displayName: user.email.split('@')[0] || "Usuario",
+                    role: 'student',
+                    createdAt: new Date(),
+                    photoURL: null
+                });
+            } catch (e) {
+                console.error("Self-heal user doc failed", e);
+            }
         }
     } catch (err) {
-        console.error(err);
+        console.error("Profile UI update failed", err);
     }
 }
 
